@@ -101,6 +101,7 @@
   // over the element.
   function morphPathTo(el, targetD) {
     cancelMorph(el);
+    cancelGrow(el); // a still-growing path has a stroke-dasharray set - clear it before we start moving `d` under it
 
     var fromD = el.getAttribute('d');
     var fromPts = samplePathPoints(el, MORPH_SAMPLES);
@@ -121,6 +122,69 @@
       }
     }
     el.__morphFrame = requestAnimationFrame(step);
+  }
+
+  // -------------------------------------------------------------
+  // "Draw-on" reveal for a route's very first appearance: rather than
+  // just fading in over its full final shape, the line grows outward
+  // from S, tip-first, the way a subway line gets extended.
+  //
+  // The classic SVG technique: a path's stroke-dasharray/dashoffset can
+  // describe "one dash exactly as long as the whole path, currently
+  // slid completely out of view" (dasharray = dashoffset = total
+  // length); animating dashoffset down to 0 slides that single dash back
+  // into place, which reads as the line drawing itself from start to
+  // end. This needs the path's REAL final `d` (with its actual curves)
+  // set from the start - only the reveal window changes, not the shape
+  // - so it stays exact the whole time, unlike the polyline morph above.
+  // -------------------------------------------------------------
+  var GROW_DURATION = 650; // ms - a bit slower than a morph; this is a fresh discovery, not a quick correction
+
+  function cancelGrow(el) {
+    if (el.__growFrame) {
+      cancelAnimationFrame(el.__growFrame);
+      el.__growFrame = null;
+    }
+    el.style.strokeDasharray = '';
+    el.style.strokeDashoffset = '';
+  }
+
+  // Add `is-visible` (opacity: 1) without letting its normal 0.25s CSS
+  // fade run - the draw-on effect is what should carry a first
+  // appearance, not a simultaneous opacity fade fighting it for
+  // attention. Transition is suppressed only for this one instant jump;
+  // future opacity changes (e.g. fading back out) animate normally.
+  function addVisibleInstant(el) {
+    var prevTransition = el.style.transition;
+    el.style.transition = 'none';
+    el.classList.add('is-visible');
+    el.getBoundingClientRect(); // force layout so the jump commits before the transition is restored
+    el.style.transition = prevTransition;
+  }
+
+  function growPathFromStart(el, targetD) {
+    cancelMorph(el);
+    cancelGrow(el);
+
+    el.setAttribute('d', targetD); // the real, final geometry throughout - only the reveal window animates
+    var len = el.getTotalLength();
+    el.style.strokeDasharray = String(len);
+    el.style.strokeDashoffset = String(len); // fully hidden
+
+    var start = null;
+    function step(ts) {
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / GROW_DURATION);
+      el.style.strokeDashoffset = String(len * (1 - easeOutCubic(t)));
+      if (t < 1) {
+        el.__growFrame = requestAnimationFrame(step);
+      } else {
+        el.style.strokeDasharray = '';
+        el.style.strokeDashoffset = '';
+        el.__growFrame = null;
+      }
+    }
+    el.__growFrame = requestAnimationFrame(step);
   }
 
   var nodeCenters = NODE_ORDER.map(function (node) { return NODES[node]; });
@@ -357,21 +421,25 @@
       if (d) {
         var currentD = el.getAttribute('d');
         var wasVisible = el.classList.contains('is-visible');
-        if (wasVisible && currentD && currentD !== d) {
+        if (!wasVisible) {
+          // First appearance: draw it growing outward from S instead of
+          // just fading in over its full shape.
+          addVisibleInstant(el);
+          growPathFromStart(el, d);
+        } else if (currentD && currentD !== d) {
           // Already on screen and its shape actually changed (relaxed to
           // a better route, or - going Back - unrelaxed to a worse one):
           // sweep into the new shape instead of snapping.
           morphPathTo(el, d);
         } else {
-          // First appearance (nothing to morph from), or the shape is
-          // unchanged - just set it directly. The fade-in for a first
-          // appearance is handled by the CSS opacity transition below.
+          // Shape is unchanged - nothing to animate.
           cancelMorph(el);
+          cancelGrow(el);
           el.setAttribute('d', d);
         }
-        el.classList.add('is-visible');
       } else {
         cancelMorph(el);
+        cancelGrow(el);
         el.classList.remove('is-visible');
       }
     });
