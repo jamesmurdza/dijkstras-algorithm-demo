@@ -55,11 +55,6 @@ var EDGES = [
 
 var START_NODE = 'S';
 
-// Shared node circle radius (pixels). Lives here rather than in app.js
-// because routing.js also needs it - it's the base radius that the
-// wrap-around rings in routing.js count outward from.
-var NODE_RADIUS = 12;
-
 // ---------------------------------------------------------------------
 // Adjacency list, built once from EDGES so the algorithm never has to
 // special-case direction: every edge is reachable from either endpoint.
@@ -268,7 +263,6 @@ if (typeof module !== 'undefined' && module.exports) {
     NODES: NODES,
     EDGES: EDGES,
     START_NODE: START_NODE,
-    NODE_RADIUS: NODE_RADIUS,
     ADJACENCY: ADJACENCY,
     edgeKey: edgeKey,
     edgeWeight: edgeWeight,
