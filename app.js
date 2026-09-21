@@ -91,12 +91,19 @@
 
   // Base graph edges, drawn once in a subtle neutral gray so the full
   // topology is always visible underneath whichever routes are colored.
+  // Every edge starts dashed ("not part of the shortest-path tree yet");
+  // renderStep() below adds `is-used` (solid) for whichever edges the
+  // CURRENT frame's paths actually run through, straight from the same
+  // `collectEdgeUsage` routing.js uses to lay out the colored lines.
+  var edgeEls = {};
   EDGES.forEach(function (edge) {
     var a = NODES[edge[0]], b = NODES[edge[1]], w = edge[2];
-    gEdgesBase.appendChild(svgEl('line', {
+    var lineEl = svgEl('line', {
       class: 'edge-base',
       x1: a.x, y1: a.y, x2: b.x, y2: b.y,
-    }));
+    });
+    gEdgesBase.appendChild(lineEl);
+    edgeEls[edgeKey(edge[0], edge[1])] = lineEl;
 
     // Weight label near the midpoint (nudged off-center only when the
     // midpoint would otherwise collide with a node circle - see
@@ -258,6 +265,10 @@
     if (currentIndex === frames.length - 1) stopPlay();
 
     // --- colored subway paths, derived fresh from this frame -------
+    // (collectEdgeUsage is the same routing.js helper buildAllPaths uses
+    // internally - reusing it here keeps "which edges are solid" and
+    // "which edges the colored lines run through" from ever disagreeing.)
+    var edgeUsage = collectEdgeUsage(frame);
     var allPaths = buildAllPaths(frame);
     Object.keys(routeEls).forEach(function (node) {
       var d = allPaths[node];
@@ -270,15 +281,19 @@
       }
     });
 
+    // --- base edges: solid once part of the current shortest-path tree,
+    // dashed while still untraversed -----------------------------------
+    Object.keys(edgeEls).forEach(function (key) {
+      edgeEls[key].classList.toggle('is-used', !!edgeUsage[key]);
+    });
+
     // --- node visual states -----------------------------------------
     NODE_ORDER.forEach(function (node) {
       var isCurrent = frame.processingNode === node;
       var isVisited = !!frame.visited[node];
-      var isUnreached = frame.dist[node] === Infinity;
       var cls = ['node'];
       if (isCurrent) cls.push('is-current');
       if (isVisited) cls.push('is-visited');
-      if (isUnreached) cls.push('is-unreached');
       nodeEls[node].g.setAttribute('class', cls.join(' '));
     });
 

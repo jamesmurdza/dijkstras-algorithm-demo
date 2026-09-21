@@ -132,10 +132,17 @@ body {
 }
 .hint-swatch--edge { background: var(--edge-gray); }
 
+/* Graph edges default to dashed gray ("not part of the current
+   shortest-path tree"); app.js adds .is-used (solid) for whichever edges
+   this frame's paths actually run through. */
 .edge-base {
   stroke: #c3c2b7;
   stroke-width: 3;
   stroke-linecap: round;
+  stroke-dasharray: 6 5;
+}
+.edge-base.is-used {
+  stroke-dasharray: none;
 }
 
 .edge-weight rect {
@@ -176,9 +183,11 @@ body {
   stroke: none;
   transition: stroke 0.2s ease, opacity 0.2s ease;
 }
-.node.is-unreached .node-circle { opacity: 0.35; }
 
-/* Visited nodes keep the same thin border as every other node (the
+/* Nodes stay fully opaque whether or not they've been reached yet -
+   only the halo (current) and the edge dashing (untraversed) communicate
+   algorithm state, not node transparency.
+   Visited nodes keep the same thin border as every other node (the
    default paper-colored stroke set on .node-circle below) - no extra
    black ring is added just for having been visited. */
 
