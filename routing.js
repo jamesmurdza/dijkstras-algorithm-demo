@@ -31,12 +31,21 @@
  *      direction of travel" for the WHOLE route, at every edge, like a
  *      "keep to your left" rule for someone walking the path from S
  *      onward. See travelPerp() below for why that consistency matters.
- *   5. Stitch the offset segments back together with straight runs
- *      between nodes and small quadratic-bezier "rounded corners" at
- *      every intermediate node the path passes through, so bends look
- *      controlled and deliberate instead of jagged. Each path starts
- *      and ends by curving exactly into its endpoint node's center, so
- *      it is always visually obvious which nodes a route connects.
+ *   5. At every INTERMEDIATE node a route bends through (not S, not its
+ *      own destination), taper the lane's offset down to exactly zero
+ *      approaching the node and back up to full width leaving it,
+ *      instead of holding full offset all the way in and cutting a
+ *      corner. Every lane converges to the exact same point - the node's
+ *      own center - right where the node's circle is drawn on top of it,
+ *      so the convergence point itself is invisible; what's visible is
+ *      the whole bundle calmly gathering into the junction and
+ *      spreading back out, the way real subway lines visually gather
+ *      through a station rather than each track cutting its own corner.
+ *      This sidesteps corner-shape questions entirely - there's no
+ *      "corner" left to smooth once every lane's offset is zero at the
+ *      node. Each path starts and ends by curving exactly into its
+ *      endpoint node's center too, so it is always visually obvious
+ *      which nodes a route connects.
  *
  * Because this is recomputed from `frame.dist` / `frame.prev` on every
  * single step, a path is redrawn (and can jump to a completely different
@@ -45,6 +54,14 @@
  */
 
 var LANE_SPACING = 6; // px between adjacent parallel lanes on a shared edge
+
+// How far (px) before/after an intermediate node a lane's offset tapers
+// down to zero (and back up again). Bigger than the node radius (12) so
+// the point where all lanes actually converge sits safely inside the
+// node's own circle - which is drawn on top of every route - and is
+// never visible itself; only the smooth gather-and-spread on either
+// side of it is.
+var TAPER_LEN = 22;
 
 // ---------------------------------------------------------------------
 // Small vector helpers
@@ -124,45 +141,70 @@ function buildDestinationPathD(frame, usage, destNode) {
   // One offset "lane segment" (parallel to the real edge) per hop. The
   // usage-list lookup still uses the canonical (sorted) edge key - that's
   // just a dictionary key for grouping, it has no geometric meaning - but
-  // the offset direction itself now comes from travelPerp(from, to), the
-  // real direction of travel, so a lane's relative side is consistent
-  // for the whole route rather than reset per edge (see travelPerp above).
+  // the offset direction itself comes from travelPerp(from, to), the real
+  // direction of travel, so a lane's relative side is consistent for the
+  // whole route rather than reset per edge (see travelPerp above).
+  //
+  // Alongside the usual full-offset endpoints (fullStart/fullEnd, exactly
+  // like before - used whenever this end is S or destNode, which never
+  // taper), each segment also carries its own direction/perpendicular/
+  // offset so the taper points at an intermediate node can be computed
+  // on demand for whichever segment is on each side of that node.
   var segments = path.slice(0, -1).map(function (from, i) {
     var to = path[i + 1];
     var sorted = [from, to].sort();
     var key = sorted[0] + '-' + sorted[1];
     var offset = laneOffset(usage[key], destNode);
-    var perp = travelPerp(from, to);
+    var dir = vecNorm(vecSub(NODES[to], NODES[from]));
+    var perp = travelPerp(from, to); // == vecPerp(dir); named form kept for the "why" - see travelPerp above
     var ox = perp.x * offset, oy = perp.y * offset;
     var a = NODES[from], b = NODES[to];
     return {
-      start: { x: a.x + ox, y: a.y + oy },
-      end: { x: b.x + ox, y: b.y + oy },
+      dir: dir, perp: perp, offset: offset,
+      fullStart: { x: a.x + ox, y: a.y + oy },
+      fullEnd: { x: b.x + ox, y: b.y + oy },
     };
   });
+
+  // Point TAPER_LEN before/after `node`, still at the given segment's
+  // full lane offset - where a taper down to (or up from) the node's
+  // exact center begins.
+  function taperPointBefore(node, seg) {
+    return { x: node.x - seg.dir.x * TAPER_LEN + seg.perp.x * seg.offset, y: node.y - seg.dir.y * TAPER_LEN + seg.perp.y * seg.offset };
+  }
+  function taperPointAfter(node, seg) {
+    return { x: node.x + seg.dir.x * TAPER_LEN + seg.perp.x * seg.offset, y: node.y + seg.dir.y * TAPER_LEN + seg.perp.y * seg.offset };
+  }
 
   var startNode = NODES[path[0]]; // always S
   var d = 'M ' + startNode.x + ' ' + startNode.y;
 
-  // Curve out from S's exact center into the first lane.
-  var first = segments[0];
-  d += ' Q ' + midpoint(startNode, first.start) + ' ' + pt(first.start);
-  d += ' L ' + pt(first.end);
+  // Curve out from S's exact center into the first lane - S never
+  // tapers, it's the start of the whole journey.
+  d += ' Q ' + midpoint(startNode, segments[0].fullStart) + ' ' + pt(segments[0].fullStart);
 
-  // Straight lane run for each subsequent edge, joined by a rounded
-  // corner (a quadratic bezier "pulled" toward the real node position)
-  // at every intermediate node the path passes through.
-  for (var i = 1; i < segments.length; i++) {
-    var node = NODES[path[i]];
-    d += ' Q ' + pt(node) + ' ' + pt(segments[i].start);
-    d += ' L ' + pt(segments[i].end);
+  for (var i = 0; i < segments.length; i++) {
+    var seg = segments[i];
+    var isLast = i === segments.length - 1;
+
+    if (isLast) {
+      // destNode never tapers either - run at full offset all the way,
+      // then curve exactly into its center so the route visibly
+      // terminates at the right place.
+      d += ' L ' + pt(seg.fullEnd);
+      var dest = NODES[destNode];
+      d += ' Q ' + midpoint(seg.fullEnd, dest) + ' ' + pt(dest);
+    } else {
+      // path[i + 1] is an intermediate node this route bends through:
+      // run at full offset up to TAPER_LEN before it, taper down to its
+      // exact center, then taper back up to full offset on the far side.
+      var node = NODES[path[i + 1]];
+      var nextSeg = segments[i + 1];
+      d += ' L ' + pt(taperPointBefore(node, seg));
+      d += ' L ' + pt(node);
+      d += ' L ' + pt(taperPointAfter(node, nextSeg));
+    }
   }
-
-  // Curve into the destination node's exact center so the route
-  // visibly terminates at the right place.
-  var lastEnd = segments[segments.length - 1].end;
-  var dest = NODES[destNode];
-  d += ' Q ' + midpoint(lastEnd, dest) + ' ' + pt(dest);
 
   return d;
 }
