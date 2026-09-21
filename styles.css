@@ -22,6 +22,10 @@
  * both themes since they are drawn as bright flat fills on a light SVG
  * canvas that does not switch to a dark surface (a subway map's own
  * "paper" stays light so its line colors keep their standard reading).
+ * The header and toolbar chrome share that exact same fixed color (the
+ * --canvas token) rather than the theme-aware --page background the rest
+ * of the document sits on, so the title/toolbar bars and the canvas
+ * between them read as one continuous surface with no visible seam.
  */
 
 :root {
@@ -29,6 +33,12 @@
   --surface-1: #fcfcfb;
   --surface-2: #f2f1ee;
   --page: #f9f9f7;
+  /* The graph canvas's own fixed "paper" color - deliberately the same
+     literal value in both themes (see the note on .canvas-area below) -
+     shared with the header and toolbar too so the whole app reads as one
+     continuous surface with no visible seam between the title/toolbar
+     chrome and the canvas between them. */
+  --canvas: #fcfcfb;
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
   --text-muted: #898781;
@@ -82,6 +92,7 @@ body {
 .app-header {
   flex: 0 0 auto;
   padding: 10px 16px;
+  background: var(--canvas);
 }
 .app-header h1 {
   font-size: clamp(1rem, 2vw, 1.25rem);
@@ -103,7 +114,7 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   position: relative;
-  background: #fcfcfb;
+  background: var(--canvas);
 }
 
 .graph-container {
@@ -326,6 +337,7 @@ body {
   align-items: center;
   gap: 4px;
   padding: 8px 12px;
+  background: var(--canvas);
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
