@@ -167,28 +167,35 @@ body {
 }
 
 /* Colored destination routes: thin, rounded, no casing/outline.
-   Invisible until the destination is first discovered; dimmed while its
-   route is still tentative (discovered but the destination hasn't been
-   visited/finalized yet); snaps to full opacity the instant it has. This
-   is what shows algorithm progress now: rather than an animated
-   highlight on whichever single node is currently being processed, the
-   whole picture reads at a glance from which routes have already
-   settled into full color versus which are still provisional. */
+   Invisible until the destination is first discovered; drawn dashed (at
+   full color/opacity) while still tentative - discovered but the
+   destination hasn't been visited/finalized yet - then switches to a
+   solid line the instant it has. This is what shows algorithm progress
+   now: rather than an animated highlight on whichever single node is
+   currently being processed, the whole picture reads at a glance from
+   which routes have already settled (solid) versus which are still
+   provisional (dashed) - the same dashed-means-not-final language the
+   gray unused edges already use (see .edge-base above), just applied to
+   a route's own color instead of gray. (Deliberately no transition on
+   stroke-dasharray - animating a dash pattern is unreliable across
+   browsers, so it snaps, the same instant .edge-base's dashing does.) */
 .route-path {
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
   opacity: 0;
+  stroke-dasharray: 6 5;
   transition: opacity 0.3s ease;
 }
-.route-path.is-visible { opacity: 0.45; }
-.route-path.is-settled { opacity: 1; }
+.route-path.is-visible { opacity: 1; }
+.route-path.is-settled { stroke-dasharray: none; }
 
 /* Nodes themselves always stay fully opaque, regardless of visited state
-   - only their routes (above) dim while tentative. Visited nodes keep
-   the same thin border as every other node (the default paper-colored
-   stroke below) - no extra ring is added just for having been visited. */
+   - only their routes (above) switch between dashed and solid. Visited
+   nodes keep the same thin border as every other node (the default
+   paper-colored stroke below) - no extra ring is added just for having
+   been visited. */
 .node-circle {
   stroke: #fcfcfb;
   stroke-width: 1.5;
