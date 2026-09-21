@@ -21,8 +21,16 @@
  *      spaces routes out into parallel, non-overlapping tracks with
  *      consistent spacing, and keeps a given destination's lane
  *      assignment stable relative to the others sharing that edge.
- *   4. Offset each edge segment sideways (perpendicular to the edge)
- *      by (laneIndex - middle) * LANE_SPACING pixels.
+ *   4. Offset each edge segment sideways (perpendicular to the ACTUAL
+ *      direction that edge is walked in, from -> to) by
+ *      (laneIndex - middle) * LANE_SPACING pixels. Every route walks a
+ *      shared edge in the same direction (this is a shortest-path TREE,
+ *      so an edge only ever points "child-ward" one way at a time), so
+ *      this still keeps every lane on that edge parallel - but it also
+ *      means a lane's offset sign consistently means "to the left of the
+ *      direction of travel" for the WHOLE route, at every edge, like a
+ *      "keep to your left" rule for someone walking the path from S
+ *      onward. See travelPerp() below for why that consistency matters.
  *   5. Stitch the offset segments back together with straight runs
  *      between nodes and small quadratic-bezier "rounded corners" at
  *      every intermediate node the path passes through, so bends look
@@ -47,15 +55,26 @@ function vecNorm(v) { var l = vecLen(v); return { x: v.x / l, y: v.y / l }; }
 // Perpendicular (rotate 90 degrees) of a unit vector.
 function vecPerp(v) { return { x: -v.y, y: v.x }; }
 
-// Perpendicular unit vector for an edge, computed from a *canonical*
-// (alphabetically sorted) node order. Using the canonical order - rather
-// than whichever direction a particular path happens to traverse the
-// edge in - guarantees every destination sharing that edge offsets
-// against the exact same reference line, so their lanes actually end up
-// parallel instead of mirrored/overlapping.
-function canonicalPerp(u, v) {
-  var a = NODES[u], b = NODES[v];
-  return vecPerp(vecNorm(vecSub(b, a)));
+// Perpendicular unit vector for a segment, computed from the ACTUAL
+// direction this destination travels it (from -> to), not from some
+// arbitrary per-edge convention (e.g. alphabetical node order). Because
+// every route walks a shared edge in the same direction (it's a
+// shortest-path TREE - an edge is only ever "child-ward" from one
+// specific side at a time), every destination using this edge computes
+// the exact same perpendicular here too, so lanes still line up in
+// parallel exactly like before.
+//
+// The reason this matters: a lane's offset sign now means "consistently
+// to the left of the direction of travel" for the ENTIRE route, at every
+// edge it crosses - like a "keep to your left" rule for someone walking
+// the path from S onward - rather than a sign that can happen to flip
+// depending on each edge's own arbitrary alphabetical convention. Before
+// this, a lane could be offset to (say) the right of one edge and the
+// left of the very next edge purely because of how their endpoint names
+// happened to sort, which is what made bundles cross through each other
+// at a bend instead of sweeping through it together as a coherent group.
+function travelPerp(from, to) {
+  return vecPerp(vecNorm(vecSub(NODES[to], NODES[from])));
 }
 
 // ---------------------------------------------------------------------
@@ -102,13 +121,18 @@ function buildDestinationPathD(frame, usage, destNode) {
   var path = pathTo(destNode, frame.dist, frame.prev);
   if (!path || path.length < 2) return null;
 
-  // One offset "lane segment" (parallel to the real edge) per hop.
+  // One offset "lane segment" (parallel to the real edge) per hop. The
+  // usage-list lookup still uses the canonical (sorted) edge key - that's
+  // just a dictionary key for grouping, it has no geometric meaning - but
+  // the offset direction itself now comes from travelPerp(from, to), the
+  // real direction of travel, so a lane's relative side is consistent
+  // for the whole route rather than reset per edge (see travelPerp above).
   var segments = path.slice(0, -1).map(function (from, i) {
     var to = path[i + 1];
     var sorted = [from, to].sort();
     var key = sorted[0] + '-' + sorted[1];
     var offset = laneOffset(usage[key], destNode);
-    var perp = canonicalPerp(sorted[0], sorted[1]);
+    var perp = travelPerp(from, to);
     var ox = perp.x * offset, oy = perp.y * offset;
     var a = NODES[from], b = NODES[to];
     return {
