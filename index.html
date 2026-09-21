@@ -10,27 +10,26 @@
   <div class="app">
     <header class="app-header">
       <h1>Dijkstra's Algorithm, step by step</h1>
-      <p class="subtitle">
-        A live run of Dijkstra's shortest-path algorithm from <strong>S</strong>,
-        drawn as a subway map — each destination gets its own colored line that
-        redraws itself the instant the algorithm finds a shorter route.
-      </p>
     </header>
 
-    <main class="layout">
-      <section class="graph-panel" aria-label="Graph visualization">
-        <div id="graph-container" class="graph-container">
-          <!-- SVG graph is built and updated entirely by app.js -->
-        </div>
-        <p class="graph-hint">
-          <span class="hint-swatch hint-swatch--edge"></span> graph edge (unused)
-          &nbsp;·&nbsp;
-          colored lines = each node's current best-known path from S
-        </p>
-      </section>
+    <!-- One large canvas: the graph is the whole UI above the toolbar.
+         The step/table drawers are overlays toggled from the toolbar -
+         they don't take space away from the canvas until opened. -->
+    <main class="canvas-area" aria-label="Graph visualization">
+      <div id="graph-container" class="graph-container">
+        <!-- SVG graph is built and updated entirely by app.js -->
+      </div>
+      <p class="graph-hint">
+        <span class="hint-swatch hint-swatch--edge"></span> graph edge (unused)
+        &nbsp;·&nbsp;
+        colored lines = each node's current best-known path from S
+      </p>
 
-      <section class="info-panel" aria-label="Algorithm controls and state">
-        <div class="step-box">
+      <!-- Drawer: shows EITHER the current-step panel OR the status
+           table, toggled by the two buttons on the right of the toolbar.
+           Hidden by default. -->
+      <section id="drawer" class="drawer" aria-label="Details" hidden>
+        <div id="drawer-step" class="drawer-panel">
           <div class="step-box__top">
             <span id="frame-badge" class="frame-badge">Init</span>
             <span id="step-counter" class="step-counter">Step 1 / 1</span>
@@ -38,42 +37,38 @@
           <p id="step-description" class="step-description">Loading…</p>
         </div>
 
-        <div class="controls" role="group" aria-label="Step controls">
-          <button id="btn-reset" class="btn btn--ghost" type="button" title="Reset to the beginning">⟲ Reset</button>
-          <button id="btn-back" class="btn" type="button" title="Previous step">← Back</button>
-          <button id="btn-play" class="btn" type="button" title="Auto-play through the steps">▶ Play</button>
-          <button id="btn-next" class="btn" type="button" title="Next step">Next →</button>
-        </div>
-
-        <div class="slider-row">
-          <input id="step-slider" type="range" min="0" max="0" step="1" value="0"
-                 aria-label="Algorithm step" />
-        </div>
-
-        <div class="table-wrap">
-          <table class="stats-table" id="stats-table">
-            <caption>Tentative distances &amp; best-known routes from S</caption>
-            <thead>
-              <tr>
-                <th scope="col">Node</th>
-                <th scope="col">Status</th>
-                <th scope="col">Distance</th>
-                <th scope="col">Best-known route</th>
-              </tr>
-            </thead>
-            <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
-          </table>
+        <div id="drawer-table" class="drawer-panel">
+          <div class="table-wrap">
+            <table class="stats-table" id="stats-table">
+              <caption>Tentative distances &amp; best-known routes from S</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Node</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Distance</th>
+                  <th scope="col">Best-known route</th>
+                </tr>
+              </thead>
+              <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="app-footer">
-      <p>
-        Graph, algorithm and step generation: <code>dijkstra.js</code> ·
-        Parallel-track path routing: <code>routing.js</code> ·
-        Rendering &amp; controls: <code>app.js</code>. Run <code>node test/run-tests.js</code>
-        for the automated correctness checks.
-      </p>
+    <!-- Toolbar: the only other piece of UI besides the canvas. Reset /
+         Back / a long slider / Next / Play on the left, the two drawer
+         toggles on the right. -->
+    <footer class="toolbar" role="group" aria-label="Step controls">
+      <button id="btn-reset" class="btn btn--ghost" type="button" title="Reset to the beginning">⟲ Reset</button>
+      <button id="btn-back" class="btn" type="button" title="Previous step">← Back</button>
+      <input id="step-slider" class="slider" type="range" min="0" max="0" step="1" value="0"
+             aria-label="Algorithm step" />
+      <button id="btn-next" class="btn" type="button" title="Next step">Next →</button>
+      <button id="btn-play" class="btn" type="button" title="Auto-play through the steps">▶ Play</button>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-toggle-step" class="btn btn--toggle" type="button" aria-pressed="false" title="Show the current-step panel">Step Info</button>
+      <button id="btn-toggle-table" class="btn btn--toggle" type="button" aria-pressed="false" title="Show the distances table">Table</button>
     </footer>
   </div>
 

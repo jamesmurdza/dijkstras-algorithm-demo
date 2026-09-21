@@ -192,6 +192,36 @@
   var btnReset = document.getElementById('btn-reset');
   var btnPlay = document.getElementById('btn-play');
 
+  // The step-description and stats-table live in an overlay "drawer"
+  // that floats above the toolbar. It's closed by default (canvas-only
+  // UI); either toggle button opens it showing that panel, and clicking
+  // the already-active toggle closes it again. The underlying content of
+  // both panels is still kept fully up to date on every render() call
+  // regardless of whether the drawer is open, so opening it always shows
+  // the current step immediately.
+  var drawer = document.getElementById('drawer');
+  var drawerStepPanel = document.getElementById('drawer-step');
+  var drawerTablePanel = document.getElementById('drawer-table');
+  var btnToggleStep = document.getElementById('btn-toggle-step');
+  var btnToggleTable = document.getElementById('btn-toggle-table');
+  var drawerMode = null; // null | 'step' | 'table'
+
+  function setDrawerMode(mode) {
+    drawerMode = mode;
+    drawer.hidden = mode === null;
+    drawerStepPanel.classList.toggle('is-active', mode === 'step');
+    drawerTablePanel.classList.toggle('is-active', mode === 'table');
+    btnToggleStep.setAttribute('aria-pressed', String(mode === 'step'));
+    btnToggleTable.setAttribute('aria-pressed', String(mode === 'table'));
+  }
+
+  btnToggleStep.addEventListener('click', function () {
+    setDrawerMode(drawerMode === 'step' ? null : 'step');
+  });
+  btnToggleTable.addEventListener('click', function () {
+    setDrawerMode(drawerMode === 'table' ? null : 'table');
+  });
+
   elSlider.max = String(frames.length - 1);
 
   var FRAME_BADGE_LABEL = {
@@ -294,5 +324,6 @@
     else if (e.key === 'ArrowLeft') { stopPlay(); renderStep(currentIndex - 1); }
   });
 
+  setDrawerMode(null);
   renderStep(0);
 })();

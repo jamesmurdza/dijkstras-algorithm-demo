@@ -3,8 +3,14 @@
  * ----------
  * Visual language: a "subway map" — thin rounded lines, distinct flat
  * node colors, subtle gray background edges, no heavy outlines/casings
- * around colored routes. Layout is a responsive two-column grid that
- * stacks to a single column on narrow/mobile viewports.
+ * around colored routes.
+ *
+ * Layout: one large canvas (the graph) filling the viewport, with a thin
+ * toolbar docked at the bottom (Reset/Back/slider/Next/Play + two panel
+ * toggles). The step-description and stats-table panels are NOT part of
+ * the permanent layout - they're an overlay "drawer" that floats above
+ * the toolbar and is only in the DOM's visible flow when a toggle button
+ * opens it, so the canvas stays the whole UI by default.
  *
  * Color roles use CSS custom properties (light values here, dark values
  * under prefers-color-scheme) so the same rules apply in both themes -
@@ -24,11 +30,9 @@
   --text-muted: #898781;
   --border: rgba(11, 11, 11, 0.1);
   --edge-gray: #c3c2b7;
-  --edge-gray-label-bg: #fcfcfb;
   --accent: #2a78d6;
   --accent-ink: #ffffff;
   --status-good: #0ca30c;
-  --status-warning: #d98c00;
   --status-select: #3a3a38;
 }
 
@@ -43,60 +47,79 @@
     --text-muted: #8f8d86;
     --border: rgba(255, 255, 255, 0.12);
     --edge-gray: #4a4a47;
-    --edge-gray-label-bg: #1a1a19;
     --accent: #3987e5;
     --accent-ink: #ffffff;
     --status-good: #29c229;
-    --status-warning: #e6a53a;
     --status-select: #d8d8d4;
   }
 }
 
 * { box-sizing: border-box; }
 
-body {
+html, body {
+  height: 100%;
   margin: 0;
+}
+
+body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--page);
   color: var(--text-primary);
+  overflow: hidden; /* the app is exactly one viewport: canvas + toolbar */
 }
 
-.app { max-width: 1180px; margin: 0 auto; padding: 20px 20px 40px; }
-
-.app-header h1 { font-size: clamp(1.3rem, 2.5vw, 1.8rem); margin: 0 0 6px; }
-.subtitle { color: var(--text-secondary); max-width: 62ch; line-height: 1.5; margin: 0 0 20px; }
-
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr);
-  gap: 20px;
-  align-items: start;
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
+.app-header {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.app-header h1 {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  margin: 0;
 }
 
-/* ------------------------- graph panel ------------------------- */
+/* ------------------------- canvas (the graph) ------------------------- */
 
-.graph-panel {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
+.canvas-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  background: #fcfcfb;
 }
 
-.graph-container { width: 100%; }
-.graph-container svg { width: 100%; height: auto; display: block; color-scheme: light; }
+.graph-container {
+  position: absolute;
+  inset: 0;
+}
+.graph-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  color-scheme: light;
+}
 
 .graph-hint {
-  font-size: 0.78rem;
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  font-size: 0.76rem;
   color: var(--text-muted);
-  margin: 10px 2px 2px;
+  margin: 0;
+  padding: 4px 10px;
+  background: rgba(252, 252, 251, 0.88);
+  border-radius: 999px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+  pointer-events: none;
 }
 
 .hint-swatch {
@@ -108,11 +131,6 @@ body {
   margin-right: 2px;
 }
 .hint-swatch--edge { background: var(--edge-gray); }
-
-/* SVG always renders on a fixed light "paper" surface (like a real transit
-   map) so the 8 route colors keep consistent, validated contrast against
-   a known background regardless of the page's own light/dark theme. */
-.graph-container svg { background: #fcfcfb; border-radius: 10px; }
 
 .edge-base {
   stroke: #c3c2b7;
@@ -173,23 +191,26 @@ body {
   50% { r: 29; opacity: 0.35; }
 }
 
-/* ------------------------- info panel ------------------------- */
+/* ------------------------- drawer (Step Info / Table overlay) ------------------------- */
 
-.info-panel {
+.drawer {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  padding: 14px 16px;
 }
+.drawer[hidden] { display: none; }
 
-.step-box {
-  background: var(--surface-2);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
+.drawer-panel { display: none; }
+.drawer-panel.is-active { display: block; }
+
 .step-box__top {
   display: flex;
   align-items: center;
@@ -220,34 +241,7 @@ body {
   margin: 0;
   line-height: 1.5;
   font-size: 0.94rem;
-  min-height: 4.5em;
 }
-
-.controls {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 8px;
-}
-.btn {
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 600;
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--accent);
-  color: var(--accent-ink);
-  cursor: pointer;
-}
-.btn:hover:not(:disabled) { filter: brightness(1.08); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn--ghost {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.slider-row { display: flex; align-items: center; }
-#step-slider { width: 100%; }
 
 .table-wrap { overflow-x: auto; }
 .stats-table {
@@ -290,20 +284,64 @@ body {
   vertical-align: middle;
 }
 
-.app-footer {
-  margin-top: 22px;
-  color: var(--text-muted);
-  font-size: 0.76rem;
-  text-align: center;
+/* ------------------------- toolbar ------------------------- */
+
+.toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
-.app-footer code {
-  background: var(--surface-2);
-  padding: 1px 5px;
-  border-radius: 4px;
+
+.slider {
+  flex: 1 1 200px;
+  min-width: 120px;
+}
+
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+.btn {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn--toggle {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+.btn--toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
 }
 
 /* ------------------------- small screens ------------------------- */
-@media (max-width: 480px) {
-  .controls { grid-template-columns: 1fr 1fr; }
-  .step-description { min-height: unset; }
+@media (max-width: 640px) {
+  .toolbar { padding: 8px; gap: 6px; }
+  .btn { padding: 8px 10px; font-size: 0.8rem; }
+  .slider { flex-basis: 100%; order: -1; }
+  .drawer { left: 8px; right: 8px; bottom: 8px; max-height: 60vh; }
 }
