@@ -256,8 +256,8 @@
     // crossing/bundled lines.
     var labelPt = findLabelPoint(a, b);
     var labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
-    labelGroup.appendChild(svgEl('rect', { x: -9, y: -8, width: 18, height: 16, rx: 4 }));
-    var text = svgEl('text', { x: 0, y: 4, 'text-anchor': 'middle' });
+    labelGroup.appendChild(svgEl('rect', { x: -7, y: -6.5, width: 14, height: 13, rx: 3 }));
+    var text = svgEl('text', { x: 0, y: 3, 'text-anchor': 'middle' });
     text.textContent = w;
     labelGroup.appendChild(text);
     gEdgeLabels.appendChild(labelGroup);
