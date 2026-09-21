@@ -42,20 +42,13 @@
     return yiq >= 150 ? '#0b0b0b' : '#ffffff';
   }
 
-  // Every node's fixed distance-badge center (same offset used when the
-  // badge is built further down) - needed up front so edge-weight labels
-  // can be placed without colliding with them.
-  var BADGE_DY = NODE_R + 15;
-  var badgeCenters = NODE_ORDER.map(function (node) {
-    return { x: NODES[node].x, y: NODES[node].y + BADGE_DY };
-  });
   var nodeCenters = NODE_ORDER.map(function (node) { return NODES[node]; });
 
   // Pick a point along edge a->b for its weight-label pill that avoids
-  // sitting on top of any node circle or node distance-badge. The graph
-  // layout is fixed, so a handful of candidate positions along the edge
-  // (starting at the midpoint, then nudging toward either end) checked
-  // once at build time is enough - no need to redo this per frame.
+  // sitting on top of any node circle. The graph layout is fixed, so a
+  // handful of candidate positions along the edge (starting at the
+  // midpoint, then nudging toward either end) checked once at build time
+  // is enough - no need to redo this per frame.
   function findLabelPoint(a, b) {
     var candidates = [0.5, 0.62, 0.38, 0.72, 0.28, 0.8, 0.2];
     for (var c = 0; c < candidates.length; c++) {
@@ -64,10 +57,7 @@
       var hitsNode = nodeCenters.some(function (n) {
         return Math.hypot(p.x - n.x, p.y - n.y) < NODE_R + 13;
       });
-      var hitsBadge = badgeCenters.some(function (n) {
-        return Math.abs(p.x - n.x) < 29 && Math.abs(p.y - n.y) < 17;
-      });
-      if (!hitsNode && !hitsBadge) return p;
+      if (!hitsNode) return p;
     }
     // Fallback: nothing was collision-free (shouldn't happen on this
     // layout) - just use the midpoint.
@@ -88,12 +78,10 @@
 
   var gEdgesBase = svgEl('g', { class: 'layer-edges-base' });
   var gPaths = svgEl('g', { class: 'layer-paths' });
-  var gActiveEdge = svgEl('g', { class: 'layer-active-edge' });
   var gEdgeLabels = svgEl('g', { class: 'layer-edge-labels' });
   var gNodes = svgEl('g', { class: 'layer-nodes' });
   svg.appendChild(gEdgesBase);
   svg.appendChild(gPaths);
-  svg.appendChild(gActiveEdge);
   // Weight-label pills are appended AFTER the colored route layer (but
   // still below the nodes) so a busy bundle of parallel lanes passing
   // directly over an edge's midpoint never blots out its weight label -
@@ -111,9 +99,9 @@
     }));
 
     // Weight label near the midpoint (nudged off-center only when the
-    // midpoint would otherwise collide with a node or its distance
-    // badge - see findLabelPoint), with a small pill behind it for
-    // legibility over crossing/bundled lines.
+    // midpoint would otherwise collide with a node circle - see
+    // findLabelPoint), with a small pill behind it for legibility over
+    // crossing/bundled lines.
     var labelPt = findLabelPoint(a, b);
     var labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
     labelGroup.appendChild(svgEl('rect', { x: -9, y: -8, width: 18, height: 16, rx: 4 }));
@@ -137,12 +125,8 @@
     routeEls[node] = el;
   });
 
-  // One reusable overlay path that flashes on top of whichever edge is
-  // being actively relaxed in the current step.
-  var activeEdgeEl = svgEl('path', { class: 'active-edge', fill: 'none' });
-  gActiveEdge.appendChild(activeEdgeEl);
-
-  // Node circles + labels + live distance badges.
+  // Node circles + labels. (Distance values live only in the edge weight
+  // labels and the stats table now - no per-node distance badge.)
   var nodeEls = {};
   NODE_ORDER.forEach(function (node) {
     var n = NODES[node];
@@ -153,19 +137,12 @@
     var label = svgEl('text', { class: 'node-label', y: 5, 'text-anchor': 'middle', fill: textColorFor(n.color) });
     label.textContent = node;
 
-    var badgeGroup = svgEl('g', { class: 'node-badge', transform: 'translate(0,' + (NODE_R + 15) + ')' });
-    var badgeRect = svgEl('rect', { class: 'node-badge-rect', x: -20, y: -10, width: 40, height: 18, rx: 9 });
-    var badgeText = svgEl('text', { class: 'node-badge-text', y: 4, 'text-anchor': 'middle' });
-    badgeGroup.appendChild(badgeRect);
-    badgeGroup.appendChild(badgeText);
-
     g.appendChild(halo);
     g.appendChild(circle);
     g.appendChild(label);
-    g.appendChild(badgeGroup);
     gNodes.appendChild(g);
 
-    nodeEls[node] = { g: g, badgeText: badgeText };
+    nodeEls[node] = { g: g };
   });
 
   // -------------------------------------------------------------
@@ -219,8 +196,7 @@
 
   var FRAME_BADGE_LABEL = {
     init: 'Init',
-    visit: 'Select',
-    relax: 'Relax',
+    visit: 'Visit',
     done: 'Done',
   };
 
@@ -264,15 +240,6 @@
       }
     });
 
-    // --- transient "actively relaxing this edge" overlay -----------
-    if (frame.activeEdge) {
-      var a = NODES[frame.activeEdge.from], b = NODES[frame.activeEdge.to];
-      activeEdgeEl.setAttribute('d', 'M ' + a.x + ' ' + a.y + ' L ' + b.x + ' ' + b.y);
-      activeEdgeEl.setAttribute('class', 'active-edge is-visible active-edge--' + frame.activeEdge.reason);
-    } else {
-      activeEdgeEl.setAttribute('class', 'active-edge');
-    }
-
     // --- node visual states -----------------------------------------
     NODE_ORDER.forEach(function (node) {
       var isCurrent = frame.processingNode === node;
@@ -283,7 +250,6 @@
       if (isVisited) cls.push('is-visited');
       if (isUnreached) cls.push('is-unreached');
       nodeEls[node].g.setAttribute('class', cls.join(' '));
-      nodeEls[node].badgeText.textContent = isUnreached ? '∞' : frame.dist[node];
     });
 
     // --- stats table --------------------------------------------------
@@ -319,7 +285,7 @@
     playTimer = setInterval(function () {
       if (currentIndex >= frames.length - 1) { stopPlay(); return; }
       renderStep(currentIndex + 1);
-    }, 1300);
+    }, 2200); // each step is now a full node visit with a longer description, so give it more time to read
   });
 
   document.addEventListener('keydown', function (e) {

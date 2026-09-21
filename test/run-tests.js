@@ -87,16 +87,18 @@ Object.keys(dijkstra.NODES).forEach(function (node) {
 
 // -----------------------------------------------------------------
 // 5. The required "shortcut discovery" milestones must actually occur,
-//    in order, as distinct relax events - proving the UI is showing a
-//    live algorithm run rather than a scripted animation.
+//    in order, as distinct relaxation results within a visit's
+//    `relaxations` list - proving the UI is showing a live algorithm run
+//    rather than a scripted animation. (Each step is now a full node
+//    visit - selection plus all of its edge relaxations at once - rather
+//    than one micro-step per edge, so we search inside `relaxations`.)
 // -----------------------------------------------------------------
 function findRelax(fromTo, reason, newDist) {
+  var to = fromTo.split('->')[1];
   return frames.findIndex(function (f) {
-    return f.type === 'relax' &&
-      f.activeEdge &&
-      f.activeEdge.from + '->' + f.activeEdge.to === fromTo &&
-      f.activeEdge.reason === reason &&
-      f.dist[fromTo.split('->')[1]] === newDist;
+    return f.type === 'visit' && f.relaxations.some(function (r) {
+      return r.from + '->' + r.to === fromTo && r.reason === reason && r.newDist === newDist;
+    }) && f.dist[to] === newDist;
   });
 }
 
@@ -114,7 +116,11 @@ var lastIndex = -1;
 milestones.forEach(function (m) {
   var idx = findRelax(m[0], m[1], m[2]);
   assert(idx !== -1, 'milestone missing: ' + m[3]);
-  assert(idx > lastIndex, 'milestone out of order: ' + m[3]);
+  // A single step now performs a whole node visit (selection + relaxing
+  // ALL of its outgoing edges at once), so two milestones can legitimately
+  // land in the very same frame (e.g. S discovering both A and C in one
+  // step) - order only needs to be non-decreasing, not strictly increasing.
+  assert(idx >= lastIndex, 'milestone out of order: ' + m[3]);
   lastIndex = Math.max(lastIndex, idx);
 });
 

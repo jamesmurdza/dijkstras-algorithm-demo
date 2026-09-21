@@ -112,22 +112,22 @@ function formatPath(path) {
 // ---------------------------------------------------------------------
 // computeFrames(startNode)
 // -------------------------------------------------------------------
-// Runs the textbook Dijkstra algorithm step by step and records a
-// snapshot ("frame") of the full algorithm state after every meaningful
-// event:
+// Runs the textbook Dijkstra algorithm and records one "frame" per node
+// visit (plus a bookend 'init' and 'done' frame):
 //   - 'init'  : initial distances set (S=0, everything else = Infinity)
-//   - 'visit' : the unvisited node with the smallest tentative distance
-//               is selected and marked visited
-//   - 'relax' : one outgoing edge of the just-visited node is examined
-//               ("relaxed"); the frame records whether it improved a
-//               neighbor's distance (first discovery or a shortcut) or
-//               changed nothing
+//   - 'visit' : the unvisited node with the smallest tentative distance is
+//               selected, marked visited, AND every one of its outgoing
+//               edges is relaxed - all in this single step. The frame's
+//               `relaxations` array records, for every neighbor examined,
+//               whether it was a first discovery, a shortcut improvement,
+//               or no change, so the UI can describe the whole visit at
+//               once instead of one micro-step per edge.
 //   - 'done'  : every reachable node has been visited
 //
 // Each frame is a fully independent deep copy of { dist, prev, visited }
 // at that exact moment, plus bookkeeping the UI needs (currentNode,
-// activeEdge, a human-readable description). Storing a snapshot per
-// event - rather than re-deriving state on every UI step - is what makes
+// relaxations, a human-readable description). Storing a snapshot per visit
+// - rather than re-deriving state on every UI step - is what makes
 // Back/Next/the slider trivial: navigating steps is just indexing into
 // this array, and every value shown was produced by actually running the
 // algorithm (nothing here is a hand-typed answer for the demo cases).
@@ -157,7 +157,7 @@ function computeFrames(startNode) {
     type: 'init',
     currentNode: null,
     processingNode: null,
-    activeEdge: null,
+    relaxations: [],
     description: 'Initialize: distance(' + startNode + ') = 0. Every other ' +
       'node starts at distance = ∞ (unknown) with no predecessor.',
   });
@@ -182,19 +182,11 @@ function computeFrames(startNode) {
     visited[u] = true;
     visitedCount++;
 
-    pushFrame({
-      type: 'visit',
-      currentNode: u,
-      processingNode: u,
-      activeEdge: null,
-      description: u === startNode
-        ? 'Start at ' + u + ' with distance 0.'
-        : 'Visit ' + u + ' — the unvisited node with the smallest ' +
-          'tentative distance (d(' + u + ') = ' + dist[u] + '). Mark it ' +
-          'visited and relax its outgoing edges.',
-    });
-
-    // --- Step: "relax its outgoing edges" ----------------------------
+    // --- One whole step = visit u AND relax every one of its outgoing
+    // edges in a single frame (rather than a separate frame per edge).
+    // Each relaxation result is recorded so the description can spell out
+    // exactly what happened to every neighbor this step touched.
+    var relaxations = [];
     ADJACENCY[u].forEach(function (edge) {
       var v = edge.to;
       var w = edge.weight;
@@ -212,33 +204,43 @@ function computeFrames(startNode) {
         reason = 'no-change';
       }
 
-      var path = pathTo(v, dist, prev);
-      var desc;
-      if (reason === 'discovered') {
-        desc = 'Relax ' + u + '→' + v + ' (weight ' + w + '): ' + v +
-          ' was unreached (∞). New candidate distance = ' + dist[u] +
-          ' + ' + w + ' = ' + alt + '. Set distance(' + v + ') = ' + alt +
-          ', predecessor = ' + u + '. Best path so far: ' + formatPath(path) + '.';
-      } else if (reason === 'improved') {
-        desc = 'Relax ' + u + '→' + v + ' (weight ' + w + '): candidate ' +
-          'distance via ' + u + ' = ' + dist[u] + ' + ' + w + ' = ' + alt +
-          ', which is less than the current distance(' + v + ') = ' + oldDist +
-          '. Shortcut found! Update distance(' + v + ') = ' + alt +
-          ', predecessor = ' + u + '. New best path: ' + formatPath(path) + '.';
-      } else {
-        desc = 'Relax ' + u + '→' + v + ' (weight ' + w + '): candidate ' +
-          'distance via ' + u + ' = ' + dist[u] + ' + ' + w + ' = ' + alt +
-          ', which is not better than the current distance(' + v + ') = ' +
-          oldDist + '. No update.';
-      }
+      relaxations.push({ from: u, to: v, weight: w, oldDist: oldDist, newDist: dist[v], reason: reason });
+    });
 
-      pushFrame({
-        type: 'relax',
-        currentNode: u,
-        processingNode: u,
-        activeEdge: { from: u, to: v, reason: reason },
-        description: desc,
-      });
+    // Build one combined, human-readable description for the whole step:
+    // node selection first, then one sentence per relaxed edge.
+    var sentences = [];
+    sentences.push(u === startNode
+      ? 'Start at ' + u + ' with distance 0.'
+      : 'Visit ' + u + ' — the unvisited node with the smallest tentative ' +
+        'distance (d(' + u + ') = ' + dist[u] + '). Mark it visited.');
+
+    relaxations.forEach(function (r) {
+      var path = pathTo(r.to, dist, prev);
+      if (r.reason === 'discovered') {
+        sentences.push('Relax ' + r.from + '→' + r.to + ' (weight ' + r.weight +
+          '): ' + r.to + ' was unreached (∞); ' + r.from + '\'s distance ' + dist[u] +
+          ' + ' + r.weight + ' = ' + r.newDist + ' is better. Set distance(' + r.to +
+          ') = ' + r.newDist + ', predecessor = ' + r.from + '. Path: ' + formatPath(path) + '.');
+      } else if (r.reason === 'improved') {
+        sentences.push('Relax ' + r.from + '→' + r.to + ' (weight ' + r.weight +
+          '): candidate distance ' + dist[u] + ' + ' + r.weight + ' = ' + r.newDist +
+          ' is less than the current distance(' + r.to + ') = ' + r.oldDist +
+          '. Shortcut found! Update distance(' + r.to + ') = ' + r.newDist +
+          ', predecessor = ' + r.from + '. New path: ' + formatPath(path) + '.');
+      } else {
+        sentences.push('Relax ' + r.from + '→' + r.to + ' (weight ' + r.weight +
+          '): candidate distance ' + dist[u] + ' + ' + r.weight + ' = ' + r.newDist +
+          ' is not better than the current distance(' + r.to + ') = ' + r.oldDist + '. No update.');
+      }
+    });
+
+    pushFrame({
+      type: 'visit',
+      currentNode: u,
+      processingNode: u,
+      relaxations: relaxations,
+      description: sentences.join(' '),
     });
   }
 
@@ -246,7 +248,7 @@ function computeFrames(startNode) {
     type: 'done',
     currentNode: null,
     processingNode: null,
-    activeEdge: null,
+    relaxations: [],
     description: 'All reachable nodes visited. Every distance and route ' +
       'below is now final and mathematically shortest from ' + startNode + '.',
   });

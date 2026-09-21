@@ -108,7 +108,6 @@ body {
   margin-right: 2px;
 }
 .hint-swatch--edge { background: var(--edge-gray); }
-.hint-swatch--active { background: var(--status-warning); }
 
 /* SVG always renders on a fixed light "paper" surface (like a real transit
    map) so the 8 route colors keep consistent, validated contrast against
@@ -144,27 +143,6 @@ body {
 }
 .route-path.is-visible { opacity: 1; }
 
-/* Transient highlight for "this edge is being relaxed right now". */
-.active-edge {
-  stroke: #d98c00;
-  stroke-width: 6;
-  stroke-linecap: round;
-  stroke-dasharray: 2 8;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.active-edge.is-visible {
-  opacity: 0.9;
-  animation: dash-flow 0.6s linear infinite;
-}
-.active-edge--no-change { stroke: #9a9890; }
-.active-edge--improved,
-.active-edge--discovered { stroke: #d98c00; }
-
-@keyframes dash-flow {
-  to { stroke-dashoffset: -20; }
-}
-
 .node-circle {
   stroke: #fcfcfb;
   stroke-width: 2.5;
@@ -180,21 +158,7 @@ body {
   stroke: none;
   transition: stroke 0.2s ease, opacity 0.2s ease;
 }
-.node-badge-rect {
-  fill: #fcfcfb;
-  stroke: #d8d7d0;
-  stroke-width: 1;
-}
-.node-badge-text {
-  font-size: 11px;
-  font-weight: 700;
-  fill: #0b0b0b;
-  text-anchor: middle;
-  font-variant-numeric: tabular-nums;
-}
-
 .node.is-unreached .node-circle { opacity: 0.35; }
-.node.is-unreached .node-badge-text { fill: #898781; }
 
 .node.is-visited .node-circle { stroke: #0b0b0b; stroke-width: 2.5; }
 
@@ -245,7 +209,6 @@ body {
 }
 .frame-badge--init { background: var(--text-muted); }
 .frame-badge--visit { background: var(--status-select); }
-.frame-badge--relax { background: var(--status-warning); }
 .frame-badge--done { background: var(--status-good); }
 
 .step-counter {

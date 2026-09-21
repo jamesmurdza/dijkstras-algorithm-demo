@@ -19,9 +19,10 @@ Then open `http://localhost:8000/index.html`.
 ## Files
 
 - `dijkstra.js` — graph data (fixed node positions/colors, weighted edges) and
-  the real Dijkstra implementation. Produces an ordered list of "frames" (one
-  per initialize/select/relax/done event) that fully drive the UI. Has no DOM
-  dependency, so it also runs under plain Node for testing.
+  the real Dijkstra implementation. Produces an ordered list of "frames" — one
+  for setup, one per node visit (selecting the node AND relaxing all of its
+  outgoing edges at once), and one for completion — that fully drive the UI.
+  Has no DOM dependency, so it also runs under plain Node for testing.
 - `routing.js` — turns a frame's distances/predecessors into SVG path data for
   each destination's colored route, offsetting shared graph edges into
   parallel, evenly-spaced lanes so overlapping routes stay visually distinct
