@@ -267,11 +267,13 @@
 
     // Weight label near the midpoint (nudged off-center only when the
     // midpoint would otherwise collide with a node circle or an already-
-    // placed label - see findLabelPoint), with a small pill behind it
-    // for legibility over crossing/bundled lines.
+    // placed label - see findLabelPoint), with a small round bubble
+    // behind it for legibility over crossing/bundled lines. Radius is
+    // sized to comfortably fit the widest weight in this graph (two
+    // digits, e.g. "20") without the text touching the edge of the circle.
     var labelPt = findLabelPoint(a, b);
     var labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
-    labelGroup.appendChild(svgEl('rect', { x: -8.5, y: -8, width: 17, height: 16, rx: 4 }));
+    labelGroup.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 9.5 }));
     var text = svgEl('text', { x: 0, y: 3, 'text-anchor': 'middle' });
     text.textContent = w;
     labelGroup.appendChild(text);

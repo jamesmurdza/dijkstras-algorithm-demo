@@ -154,8 +154,11 @@ body {
   opacity: 0;
 }
 
-.edge-weight rect {
-  fill: #fcfcfb;
+/* A soft off-white, not the exact canvas color (--surface-1) - the
+   bubble has no border, so it needs to read as its own shape against
+   blank canvas, not just where it happens to overlap a colored line. */
+.edge-weight circle {
+  fill: var(--surface-2);
 }
 .edge-weight text {
   fill: #898781;
