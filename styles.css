@@ -156,8 +156,6 @@ body {
 
 .edge-weight rect {
   fill: #fcfcfb;
-  stroke: #e1e0d9;
-  stroke-width: 1;
 }
 .edge-weight text {
   fill: #898781;

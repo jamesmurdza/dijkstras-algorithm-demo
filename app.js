@@ -210,7 +210,7 @@
         return Math.hypot(p.x - n.x, p.y - n.y) < NODE_R + 13;
       });
       var hitsLabel = placedLabelPoints.some(function (q) {
-        return Math.hypot(p.x - q.x, p.y - q.y) < 22;
+        return Math.hypot(p.x - q.x, p.y - q.y) < 26;
       });
       if (!hitsNode && !hitsLabel) {
         placedLabelPoints.push(p);
@@ -271,7 +271,7 @@
     // for legibility over crossing/bundled lines.
     var labelPt = findLabelPoint(a, b);
     var labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
-    labelGroup.appendChild(svgEl('rect', { x: -7, y: -6.5, width: 14, height: 13, rx: 3 }));
+    labelGroup.appendChild(svgEl('rect', { x: -8.5, y: -8, width: 17, height: 16, rx: 4 }));
     var text = svgEl('text', { x: 0, y: 3, 'text-anchor': 'middle' });
     text.textContent = w;
     labelGroup.appendChild(text);
