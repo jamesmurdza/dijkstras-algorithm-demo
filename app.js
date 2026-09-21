@@ -401,8 +401,10 @@
     if (playTimer) {
       clearInterval(playTimer);
       playTimer = null;
-      btnPlay.textContent = '▶ Play';
+      btnPlay.textContent = '▶';
       btnPlay.setAttribute('aria-pressed', 'false');
+      btnPlay.setAttribute('aria-label', 'Auto-play through the steps');
+      btnPlay.title = 'Auto-play through the steps';
     }
   }
 
@@ -503,8 +505,10 @@
       return;
     }
     if (currentIndex >= frames.length - 1) renderStep(0);
-    btnPlay.textContent = '⏸ Pause';
+    btnPlay.textContent = '⏸';
     btnPlay.setAttribute('aria-pressed', 'true');
+    btnPlay.setAttribute('aria-label', 'Pause auto-play');
+    btnPlay.title = 'Pause auto-play';
     playTimer = setInterval(function () {
       if (currentIndex >= frames.length - 1) { stopPlay(); return; }
       renderStep(currentIndex + 1);
