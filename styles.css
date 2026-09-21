@@ -263,13 +263,17 @@ body {
 
 /* ------------------------- toolbar ------------------------- */
 
+/* No filled surface/box behind the bar anymore - just a hairline divider
+   off the canvas above it, matching the header's equally plain treatment
+   above the canvas on the other side. Flat icon buttons with no border
+   or fill by default (see .btn below) read as controls belonging to that
+   quiet strip rather than a distinct panel of their own. */
 .toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--surface-1);
+  gap: 4px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
@@ -277,64 +281,69 @@ body {
 .slider {
   flex: 1 1 200px;
   min-width: 120px;
+  margin: 0 6px;
+  accent-color: var(--accent);
 }
 
 .toolbar-sep {
   width: 1px;
-  align-self: stretch;
+  height: 20px;
+  align-self: center;
   background: var(--border);
-  margin: 0 2px;
+  margin: 0 4px;
 }
 
+/* Flat by default - no border, no fill - so the row reads as a quiet
+   strip of icons rather than a row of boxed buttons. A soft tinted
+   background only appears on hover and while a control is actively
+   pressed/toggled, which is enough to show state without adding weight
+   to the bar the rest of the time. */
 .btn {
   font: inherit;
   font-size: 0.86rem;
   font-weight: 600;
   padding: 9px 12px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--accent);
-  color: var(--accent-ink);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.btn:hover:not(:disabled) { filter: brightness(1.08); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn--ghost {
+  border: none;
   background: transparent;
   color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text-primary); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+/* Needs to out-specificity the plain :hover rule above so a pressed
+   button (Play while playing, or an open drawer toggle) keeps reading as
+   active - not as a plain hover - when the pointer happens to be over it. */
+.btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--accent);
 }
 
 /* Icon-only toolbar buttons: fixed square footprint, no label text - the
    glyph itself plus each button's title/aria-label communicates its
-   action. Sized a bit larger than the text buttons used to be so the
-   glyphs stay easy to hit/read, and line-height 1 keeps the glyph
-   centered instead of riding high inside the fixed height. */
+   action. line-height 1 keeps the glyph centered instead of riding high
+   inside the fixed height. */
 .btn--icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   font-size: 1rem;
   line-height: 1;
 }
-.btn--toggle {
-  background: transparent;
-  color: var(--text-secondary);
-  border-color: var(--border);
-}
-.btn--toggle[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
 
 /* ------------------------- small screens ------------------------- */
 @media (max-width: 640px) {
-  .toolbar { padding: 8px; gap: 6px; }
-  .btn--icon { width: 34px; height: 34px; font-size: 0.9rem; }
-  .slider { flex-basis: 100%; order: -1; }
+  .toolbar { padding: 6px 8px; gap: 2px; }
+  .btn--icon { width: 32px; height: 32px; font-size: 0.9rem; }
+  .slider { flex-basis: 100%; order: -1; margin: 0; }
   .drawer { left: 8px; right: 8px; bottom: 8px; max-height: 60vh; }
 }
