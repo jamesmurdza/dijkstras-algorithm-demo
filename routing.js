@@ -63,6 +63,14 @@ var LANE_SPACING = 6; // px between adjacent parallel lanes on a shared edge
 // side of it is.
 var TAPER_LEN = 22;
 
+// How far (px) a small rounded fillet reaches back from each bend vertex
+// (where the path's direction actually changes - approaching an
+// intermediate node's taper, at the node's own center, and leaving the
+// taper again). Deliberately small and constant: just enough to take the
+// hard edge off each kink, not enough to noticeably change the overall
+// gather-and-spread shape from the taper itself.
+var BEND_ROUND = 5;
+
 // ---------------------------------------------------------------------
 // Small vector helpers
 // ---------------------------------------------------------------------
@@ -176,35 +184,34 @@ function buildDestinationPathD(frame, usage, destNode) {
     return { x: node.x + seg.dir.x * TAPER_LEN + seg.perp.x * seg.offset, y: node.y + seg.dir.y * TAPER_LEN + seg.perp.y * seg.offset };
   }
 
+  // Every point the route's "middle" (between S and destNode) actually
+  // bends at: the full-offset lane start, then for every intermediate
+  // node - taperPointBefore it, the node's own center, taperPointAfter
+  // it - and finally the full-offset lane end. Built as one flat list so
+  // roundedPolylineD can soften every interior vertex uniformly, however
+  // many bends the route happens to make.
+  var midPoints = [segments[0].fullStart];
+  for (var i = 0; i < segments.length - 1; i++) {
+    var node = NODES[path[i + 1]];
+    midPoints.push(taperPointBefore(node, segments[i]));
+    midPoints.push(node);
+    midPoints.push(taperPointAfter(node, segments[i + 1]));
+  }
+  midPoints.push(segments[segments.length - 1].fullEnd);
+
   var startNode = NODES[path[0]]; // always S
   var d = 'M ' + startNode.x + ' ' + startNode.y;
 
   // Curve out from S's exact center into the first lane - S never
   // tapers, it's the start of the whole journey.
-  d += ' Q ' + midpoint(startNode, segments[0].fullStart) + ' ' + pt(segments[0].fullStart);
+  d += ' Q ' + midpoint(startNode, midPoints[0]) + ' ' + pt(midPoints[0]);
+  d += roundedPolylineD(midPoints, BEND_ROUND);
 
-  for (var i = 0; i < segments.length; i++) {
-    var seg = segments[i];
-    var isLast = i === segments.length - 1;
-
-    if (isLast) {
-      // destNode never tapers either - run at full offset all the way,
-      // then curve exactly into its center so the route visibly
-      // terminates at the right place.
-      d += ' L ' + pt(seg.fullEnd);
-      var dest = NODES[destNode];
-      d += ' Q ' + midpoint(seg.fullEnd, dest) + ' ' + pt(dest);
-    } else {
-      // path[i + 1] is an intermediate node this route bends through:
-      // run at full offset up to TAPER_LEN before it, taper down to its
-      // exact center, then taper back up to full offset on the far side.
-      var node = NODES[path[i + 1]];
-      var nextSeg = segments[i + 1];
-      d += ' L ' + pt(taperPointBefore(node, seg));
-      d += ' L ' + pt(node);
-      d += ' L ' + pt(taperPointAfter(node, nextSeg));
-    }
-  }
+  // Curve into the destination node's exact center - destNode never
+  // tapers either - so the route visibly terminates at the right place.
+  var lastMid = midPoints[midPoints.length - 1];
+  var dest = NODES[destNode];
+  d += ' Q ' + midpoint(lastMid, dest) + ' ' + pt(dest);
 
   return d;
 }
@@ -212,6 +219,31 @@ function buildDestinationPathD(frame, usage, destNode) {
 function pt(p) { return round(p.x) + ' ' + round(p.y); }
 function midpoint(a, b) { return round((a.x + b.x) / 2) + ' ' + round((a.y + b.y) / 2); }
 function round(n) { return Math.round(n * 10) / 10; }
+
+// Draws a polyline through `points` (assuming the pen is already at
+// points[0]) with every INTERIOR vertex - taperPointBefore, the node
+// itself, taperPointAfter, for every bend along the way - softened by a
+// small rounded fillet instead of a hard corner: back off `radius` along
+// each of the two adjacent segments and join those two pull-back points
+// with a quadratic bezier through the original vertex. Never pulls back
+// more than half of either adjacent segment's own length, so this stays
+// a pure local softening regardless of how short a segment is - it can
+// never make two neighboring roundings overlap or cross.
+function roundedPolylineD(points, radius) {
+  var d = '';
+  for (var i = 1; i < points.length - 1; i++) {
+    var prev = points[i - 1], corner = points[i], next = points[i + 1];
+    var toPrev = vecNorm(vecSub(prev, corner));
+    var toNext = vecNorm(vecSub(next, corner));
+    var rPrev = Math.min(radius, vecLen(vecSub(prev, corner)) / 2);
+    var rNext = Math.min(radius, vecLen(vecSub(next, corner)) / 2);
+    var entry = { x: corner.x + toPrev.x * rPrev, y: corner.y + toPrev.y * rPrev };
+    var exit = { x: corner.x + toNext.x * rNext, y: corner.y + toNext.y * rNext };
+    d += ' L ' + pt(entry) + ' Q ' + pt(corner) + ' ' + pt(exit);
+  }
+  d += ' L ' + pt(points[points.length - 1]);
+  return d;
+}
 
 // Convenience: build { destNode: dValue } for every currently-discovered
 // destination in one call, ready to hand to the SVG renderer.
