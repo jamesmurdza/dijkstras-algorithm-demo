@@ -166,49 +166,48 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Colored destination routes: thin, rounded, no casing/outline. */
+/* Colored destination routes: thin, rounded, no casing/outline.
+   Invisible until the destination is first discovered; dimmed while its
+   route is still tentative (discovered but the destination hasn't been
+   visited/finalized yet); snaps to full opacity the instant it has - see
+   .node.is-visited below, which settles in step with it. */
 .route-path {
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
   opacity: 0;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.3s ease;
 }
-.route-path.is-visible { opacity: 1; }
+.route-path.is-visible { opacity: 0.45; }
+.route-path.is-settled { opacity: 1; }
 
 .node-circle {
   stroke: #fcfcfb;
   stroke-width: 1.5;
-  transition: filter 0.2s ease, opacity 0.2s ease;
 }
 .node-label {
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;
 }
-.node-halo {
-  fill: none;
-  stroke: none;
-  transition: stroke 0.2s ease, opacity 0.2s ease;
+
+/* A node (and, above, its colored route) stays dimmed while it's still
+   tentative - not yet reached, or reached but not yet visited/finalized
+   by the algorithm - and snaps to full opacity the moment it's actually
+   visited. This is what shows algorithm progress now: rather than an
+   animated highlight on whichever single node is currently being
+   processed, the whole picture reads at a glance from which nodes and
+   trails have already settled into full color versus which are still
+   provisional. Visited nodes keep the same thin border as every other
+   node (the default paper-colored stroke set on .node-circle above) - no
+   extra ring is added just for having been visited. */
+.node {
+  opacity: 0.45;
+  transition: opacity 0.3s ease;
 }
-
-/* Nodes stay fully opaque whether or not they've been reached yet -
-   only the halo (current) and the edge dashing (untraversed) communicate
-   algorithm state, not node transparency.
-   Visited nodes keep the same thin border as every other node (the
-   default paper-colored stroke set on .node-circle below) - no extra
-   black ring is added just for having been visited. */
-
-.node.is-current .node-halo {
-  stroke: #d98c00;
-  stroke-width: 3;
+.node.is-visited {
   opacity: 1;
-  animation: pulse-halo 1.1s ease-in-out infinite;
-}
-@keyframes pulse-halo {
-  0%, 100% { r: 19; opacity: 0.9; }
-  50% { r: 23; opacity: 0.35; }
 }
 
 /* ------------------------- drawer (Step Info / Table overlay) ------------------------- */

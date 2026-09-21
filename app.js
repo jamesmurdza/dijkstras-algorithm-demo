@@ -284,12 +284,10 @@
     var n = NODES[node];
     var g = svgEl('g', { class: 'node', 'data-node': node, transform: 'translate(' + n.x + ',' + n.y + ')' });
 
-    var halo = svgEl('circle', { class: 'node-halo', r: NODE_R + 7 });
     var circle = svgEl('circle', { class: 'node-circle', r: NODE_R, fill: n.color });
     var label = svgEl('text', { class: 'node-label', y: 4, 'text-anchor': 'middle', fill: textColorFor(n.color) });
     label.textContent = node;
 
-    g.appendChild(halo);
     g.appendChild(circle);
     g.appendChild(label);
     gNodes.appendChild(g);
@@ -442,6 +440,12 @@
         cancelGrow(el);
         el.classList.remove('is-visible');
       }
+      // A route is drawn at reduced opacity while it's still tentative
+      // (the destination has been discovered but not yet visited/
+      // finalized by the algorithm) and snaps to full opacity the moment
+      // that destination node is actually visited - mirrors the node
+      // dimming below, so a trail and its endpoint node settle together.
+      el.classList.toggle('is-settled', !!frame.visited[node]);
     });
 
     // --- base edges: solid once part of the current shortest-path tree,
