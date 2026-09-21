@@ -22,13 +22,12 @@
   var NODE_R = 12; // just big enough to fit a single bold letter
   var NODE_ORDER = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-  // Geometry (local to a node's own <g>, which is already translated to
-  // its center) for the small "currently visiting" marker floating just
-  // above the node: a solid upside-down triangle pointing straight down
-  // at it.
-  var CHEVRON_HALF_W = 5; // half-width of the flat top edge
-  var CHEVRON_TOP_Y = -(NODE_R + 11); // y of the flat top edge
-  var CHEVRON_TIP_Y = -(NODE_R + 5); // y of the bottom point (closer to the node)
+  // Geometry (local to the marker's own position - see currentMarkerGroup
+  // below) for the small "currently visiting" marker floating above a
+  // node: a solid upside-down triangle pointing straight down at it.
+  var CHEVRON_HALF_W = 6.5; // half-width of the flat top edge
+  var CHEVRON_TOP_Y = -(NODE_R + 18); // y of the flat top edge
+  var CHEVRON_TIP_Y = -(NODE_R + 8); // y of the bottom point (closer to the node)
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
   function svgEl(tag, attrs) {
@@ -313,26 +312,33 @@
     var label = svgEl('text', { class: 'node-label', y: 4, 'text-anchor': 'middle', fill: textColorFor(n.color) });
     label.textContent = node;
 
-    // Small "you are here" marker - a solid upside-down triangle sitting
-    // just above the node, pointing straight down into it. Hidden by
-    // default (see .current-chevron in styles.css) and only shown while
-    // this node is frame.processingNode - i.e. exactly the node the
-    // algorithm is actively visiting/relaxing edges from right now,
-    // distinct from "visited" (done) or merely "discovered" nodes.
-    var chevron = svgEl('path', {
-      class: 'current-chevron',
-      d: 'M ' + -CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y +
-        ' L ' + CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y +
-        ' L 0 ' + CHEVRON_TIP_Y + ' Z',
-    });
-
     g.appendChild(circle);
     g.appendChild(label);
-    g.appendChild(chevron);
     gNodes.appendChild(g);
 
     nodeEls[node] = { g: g };
   });
+
+  // Small "you are here" marker - a solid upside-down triangle pointing
+  // straight down at whichever node is currently being visited. A SINGLE
+  // shared element (not one per node) appended last so it always renders
+  // on top of every node, and repositioned in renderStep() by sliding
+  // currentMarkerGroup to the current node's coordinates - see the
+  // `transition: transform` in styles.css, which is what makes it glide
+  // from node to node instead of jumping. The bounce animation lives on
+  // the inner path instead, so it can animate in place without fighting
+  // the outer group's own position transition (an element can only have
+  // one `transform`, animated or not, at a time).
+  var currentMarkerGroup = svgEl('g', { class: 'current-marker' });
+  var currentMarkerTriangle = svgEl('path', {
+    class: 'current-chevron',
+    d: 'M ' + -CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y +
+      ' L ' + CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y +
+      ' L 0 ' + CHEVRON_TIP_Y + ' Z',
+  });
+  currentMarkerGroup.appendChild(currentMarkerTriangle);
+  gNodes.appendChild(currentMarkerGroup);
+  var lastProcessingNode = null; // so renderStep() can tell "moved" apart from "just appeared"
 
   // -------------------------------------------------------------
   // Stats table rows (built once, text content updated per render).
@@ -498,6 +504,30 @@
       if (isVisited) cls.push('is-visited');
       nodeEls[node].g.setAttribute('class', cls.join(' '));
     });
+
+    // --- "currently visiting" marker ---------------------------------
+    // Slide the single shared marker to whichever node is processingNode
+    // this frame. When it's newly appearing (there was no current node
+    // last render - e.g. just after Reset, or stepping off the 'init'/
+    // 'done' bookend frames) it should just appear in place rather than
+    // visibly flying in from wherever it was last parked, so that one
+    // move happens with transitions switched off.
+    if (frame.processingNode) {
+      var mn = NODES[frame.processingNode];
+      if (!lastProcessingNode) currentMarkerGroup.classList.add('is-jumping');
+      currentMarkerGroup.style.transform = 'translate(' + mn.x + 'px, ' + mn.y + 'px)';
+      currentMarkerGroup.classList.add('is-visible');
+      if (!lastProcessingNode) {
+        // Force layout so the position above is committed before
+        // transitions are switched back on - otherwise the browser can
+        // coalesce both changes and still animate the very first move.
+        currentMarkerGroup.getBoundingClientRect();
+        currentMarkerGroup.classList.remove('is-jumping');
+      }
+    } else {
+      currentMarkerGroup.classList.remove('is-visible');
+    }
+    lastProcessingNode = frame.processingNode;
 
     // --- stats table --------------------------------------------------
     NODE_ORDER.forEach(function (node) {

@@ -180,24 +180,38 @@ body {
   pointer-events: none;
 }
 
-/* "You are here" marker: hidden on every node by default, shown only on
-   the one node currently being visited/relaxed (.node.is-current) - see
-   app.js, which toggles that class straight from the frame's
-   `processingNode`. A thin paper-colored border (matching the node
-   circles' own stroke) keeps it visually distinct from whatever color
-   the node underneath happens to be, and a small vertical bounce draws
-   the eye to it without being distracting (kept slow/subtle, and turned
-   off entirely for prefers-reduced-motion below). */
+/* "You are here" marker: a single shared element (see currentMarkerGroup
+   in app.js) that app.js slides to whichever node is currently being
+   visited/relaxed, straight from the frame's `processingNode`. Hidden by
+   default; the outer group owns position (a smooth glide from node to
+   node via `transition: transform`) and the inner triangle owns the
+   small vertical bounce, since one element can't both transition to an
+   arbitrary position AND run a `transform`-based keyframe animation at
+   the same time. `.is-jumping` is a transition-free escape hatch app.js
+   uses for the marker's very first appearance, so it parks directly on
+   the node instead of visibly flying in from wherever it last was. */
+.current-marker {
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.45s ease, opacity 0.25s ease;
+}
+.current-marker.is-visible {
+  opacity: 1;
+}
+.current-marker.is-jumping {
+  transition: none;
+}
+
+/* A thin paper-colored border (matching the node circles' own stroke)
+   keeps the triangle visually distinct from whatever color the node
+   underneath happens to be. */
 .current-chevron {
   fill: var(--status-select);
   stroke: #fcfcfb;
   stroke-width: 1;
   stroke-linejoin: round;
-  opacity: 0;
-  pointer-events: none;
 }
-.node.is-current .current-chevron {
-  opacity: 1;
+.current-marker.is-visible .current-chevron {
   animation: chevron-bounce 1s ease-in-out infinite;
 }
 
@@ -207,6 +221,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .current-marker { transition: opacity 0.25s ease; }
   .current-chevron { animation: none; }
 }
 
