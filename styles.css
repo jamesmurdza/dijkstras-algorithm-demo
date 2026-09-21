@@ -169,8 +169,11 @@ body {
 /* Colored destination routes: thin, rounded, no casing/outline.
    Invisible until the destination is first discovered; dimmed while its
    route is still tentative (discovered but the destination hasn't been
-   visited/finalized yet); snaps to full opacity the instant it has - see
-   .node.is-visited below, which settles in step with it. */
+   visited/finalized yet); snaps to full opacity the instant it has. This
+   is what shows algorithm progress now: rather than an animated
+   highlight on whichever single node is currently being processed, the
+   whole picture reads at a glance from which routes have already
+   settled into full color versus which are still provisional. */
 .route-path {
   stroke-width: 4;
   stroke-linecap: round;
@@ -182,6 +185,10 @@ body {
 .route-path.is-visible { opacity: 0.45; }
 .route-path.is-settled { opacity: 1; }
 
+/* Nodes themselves always stay fully opaque, regardless of visited state
+   - only their routes (above) dim while tentative. Visited nodes keep
+   the same thin border as every other node (the default paper-colored
+   stroke below) - no extra ring is added just for having been visited. */
 .node-circle {
   stroke: #fcfcfb;
   stroke-width: 1.5;
@@ -190,24 +197,6 @@ body {
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;
-}
-
-/* A node (and, above, its colored route) stays dimmed while it's still
-   tentative - not yet reached, or reached but not yet visited/finalized
-   by the algorithm - and snaps to full opacity the moment it's actually
-   visited. This is what shows algorithm progress now: rather than an
-   animated highlight on whichever single node is currently being
-   processed, the whole picture reads at a glance from which nodes and
-   trails have already settled into full color versus which are still
-   provisional. Visited nodes keep the same thin border as every other
-   node (the default paper-colored stroke set on .node-circle above) - no
-   extra ring is added just for having been visited. */
-.node {
-  opacity: 0.45;
-  transition: opacity 0.3s ease;
-}
-.node.is-visited {
-  opacity: 1;
 }
 
 /* ------------------------- drawer (Step Info / Table overlay) ------------------------- */
