@@ -1,0 +1,271 @@
+/*
+ * dijkstra.js
+ * -----------
+ * Pure graph data + Dijkstra's algorithm implementation.
+ *
+ * This file has ZERO DOM dependencies on purpose: it can be loaded in a
+ * browser (as a plain <script>, it defines globals) OR required from
+ * plain Node.js (see test/run-tests.js) so the algorithm's correctness can
+ * be unit-tested independently of the visualization/rendering code in
+ * app.js. Keeping algorithm logic separate from rendering logic is what
+ * lets us claim "real Dijkstra logic, not hardcoded path snapshots" -
+ * every distance/predecessor/step shown in the UI is derived here, live.
+ */
+
+// ---------------------------------------------------------------------
+// Graph definition
+// ---------------------------------------------------------------------
+
+// Fixed node layout (pixel coordinates in the SVG viewBox) + the color
+// assigned to each node's shortest-path "line" in the subway-map view.
+// Colors come from a validated 8-slot categorical palette (blue, orange,
+// aqua, yellow, magenta, green, violet, red) assigned in a fixed order to
+// destinations A..H so every route keeps a stable, distinguishable color.
+// S is the source/origin, not a "destination", so it gets a neutral ink
+// color instead of a slot from the categorical palette.
+var NODES = {
+  S: { x: 45, y: 180, color: '#1d1d1b', order: 0 },
+  A: { x: 145, y: 70, color: '#2a78d6', order: 1 },
+  B: { x: 145, y: 290, color: '#eb6834', order: 2 },
+  C: { x: 270, y: 70, color: '#1baf7a', order: 3 },
+  D: { x: 270, y: 290, color: '#eda100', order: 4 },
+  E: { x: 390, y: 350, color: '#e87ba4', order: 5 },
+  F: { x: 410, y: 150, color: '#008300', order: 6 },
+  G: { x: 510, y: 270, color: '#4a3aa7', order: 7 },
+  H: { x: 590, y: 150, color: '#e34948', order: 8 },
+};
+
+// Undirected weighted edges: [nodeA, nodeB, weight]
+var EDGES = [
+  ['S', 'A', 10],
+  ['S', 'B', 2],
+  ['S', 'C', 20],
+  ['B', 'A', 1],
+  ['B', 'D', 10],
+  ['B', 'E', 13],
+  ['A', 'C', 2],
+  ['A', 'F', 10],
+  ['C', 'F', 2],
+  ['C', 'G', 9],
+  ['F', 'H', 3],
+  ['D', 'G', 2],
+  ['G', 'H', 4],
+  ['E', 'H', 8],
+];
+
+var START_NODE = 'S';
+
+// ---------------------------------------------------------------------
+// Adjacency list, built once from EDGES so the algorithm never has to
+// special-case direction: every edge is reachable from either endpoint.
+// ---------------------------------------------------------------------
+function buildAdjacency() {
+  var adj = {};
+  Object.keys(NODES).forEach(function (n) {
+    adj[n] = [];
+  });
+  EDGES.forEach(function (edge) {
+    var a = edge[0], b = edge[1], w = edge[2];
+    adj[a].push({ to: b, weight: w });
+    adj[b].push({ to: a, weight: w });
+  });
+  // Sort each adjacency list by neighbor name so relaxation order is
+  // deterministic (same result every run - needed for repeatable steps).
+  Object.keys(adj).forEach(function (n) {
+    adj[n].sort(function (x, y) { return x.to < y.to ? -1 : 1; });
+  });
+  return adj;
+}
+
+var ADJACENCY = buildAdjacency();
+
+function edgeKey(a, b) {
+  return [a, b].sort().join('-');
+}
+
+function edgeWeight(a, b) {
+  var found = ADJACENCY[a].find(function (e) { return e.to === b; });
+  return found ? found.weight : null;
+}
+
+// Walk a predecessor map backwards from `node` to START_NODE and return
+// the ordered list of node keys forming the best-known path, e.g.
+// ['S', 'B', 'A', 'C']. Returns null if the node is unreached (Infinity).
+function pathTo(node, dist, prev) {
+  if (dist[node] === Infinity) return null;
+  var path = [node];
+  var cur = node;
+  while (cur !== START_NODE) {
+    var p = prev[cur];
+    if (p == null) return null; // safety guard, should not happen
+    path.push(p);
+    cur = p;
+  }
+  path.reverse();
+  return path;
+}
+
+function formatPath(path) {
+  return path ? path.join(' → ') : '—'; // em dash for "not reached"
+}
+
+// ---------------------------------------------------------------------
+// computeFrames(startNode)
+// -------------------------------------------------------------------
+// Runs the textbook Dijkstra algorithm step by step and records a
+// snapshot ("frame") of the full algorithm state after every meaningful
+// event:
+//   - 'init'  : initial distances set (S=0, everything else = Infinity)
+//   - 'visit' : the unvisited node with the smallest tentative distance
+//               is selected and marked visited
+//   - 'relax' : one outgoing edge of the just-visited node is examined
+//               ("relaxed"); the frame records whether it improved a
+//               neighbor's distance (first discovery or a shortcut) or
+//               changed nothing
+//   - 'done'  : every reachable node has been visited
+//
+// Each frame is a fully independent deep copy of { dist, prev, visited }
+// at that exact moment, plus bookkeeping the UI needs (currentNode,
+// activeEdge, a human-readable description). Storing a snapshot per
+// event - rather than re-deriving state on every UI step - is what makes
+// Back/Next/the slider trivial: navigating steps is just indexing into
+// this array, and every value shown was produced by actually running the
+// algorithm (nothing here is a hand-typed answer for the demo cases).
+// ---------------------------------------------------------------------
+function computeFrames(startNode) {
+  startNode = startNode || START_NODE;
+  var dist = {};
+  var prev = {};
+  var visited = {};
+
+  Object.keys(NODES).forEach(function (n) {
+    dist[n] = n === startNode ? 0 : Infinity;
+    prev[n] = null;
+  });
+
+  var frames = [];
+
+  function pushFrame(extra) {
+    frames.push(Object.assign({
+      dist: Object.assign({}, dist),
+      prev: Object.assign({}, prev),
+      visited: Object.assign({}, visited),
+    }, extra));
+  }
+
+  pushFrame({
+    type: 'init',
+    currentNode: null,
+    processingNode: null,
+    activeEdge: null,
+    description: 'Initialize: distance(' + startNode + ') = 0. Every other ' +
+      'node starts at distance = ∞ (unknown) with no predecessor.',
+  });
+
+  var totalNodes = Object.keys(NODES).length;
+  var visitedCount = 0;
+
+  while (visitedCount < totalNodes) {
+    // --- Step: "process the unvisited node with the smallest tentative
+    // distance" -----------------------------------------------------
+    var u = null;
+    var best = Infinity;
+    Object.keys(NODES).forEach(function (n) {
+      if (!visited[n] && dist[n] < best) {
+        best = dist[n];
+        u = n;
+      }
+    });
+
+    if (u === null) break; // remaining nodes are unreachable
+
+    visited[u] = true;
+    visitedCount++;
+
+    pushFrame({
+      type: 'visit',
+      currentNode: u,
+      processingNode: u,
+      activeEdge: null,
+      description: u === startNode
+        ? 'Start at ' + u + ' with distance 0.'
+        : 'Visit ' + u + ' — the unvisited node with the smallest ' +
+          'tentative distance (d(' + u + ') = ' + dist[u] + '). Mark it ' +
+          'visited and relax its outgoing edges.',
+    });
+
+    // --- Step: "relax its outgoing edges" ----------------------------
+    ADJACENCY[u].forEach(function (edge) {
+      var v = edge.to;
+      var w = edge.weight;
+      if (visited[v]) return; // never re-relax a finalized node
+
+      var oldDist = dist[v];
+      var alt = dist[u] + w;
+      var reason;
+
+      if (alt < oldDist) {
+        dist[v] = alt;
+        prev[v] = u;
+        reason = oldDist === Infinity ? 'discovered' : 'improved';
+      } else {
+        reason = 'no-change';
+      }
+
+      var path = pathTo(v, dist, prev);
+      var desc;
+      if (reason === 'discovered') {
+        desc = 'Relax ' + u + '→' + v + ' (weight ' + w + '): ' + v +
+          ' was unreached (∞). New candidate distance = ' + dist[u] +
+          ' + ' + w + ' = ' + alt + '. Set distance(' + v + ') = ' + alt +
+          ', predecessor = ' + u + '. Best path so far: ' + formatPath(path) + '.';
+      } else if (reason === 'improved') {
+        desc = 'Relax ' + u + '→' + v + ' (weight ' + w + '): candidate ' +
+          'distance via ' + u + ' = ' + dist[u] + ' + ' + w + ' = ' + alt +
+          ', which is less than the current distance(' + v + ') = ' + oldDist +
+          '. Shortcut found! Update distance(' + v + ') = ' + alt +
+          ', predecessor = ' + u + '. New best path: ' + formatPath(path) + '.';
+      } else {
+        desc = 'Relax ' + u + '→' + v + ' (weight ' + w + '): candidate ' +
+          'distance via ' + u + ' = ' + dist[u] + ' + ' + w + ' = ' + alt +
+          ', which is not better than the current distance(' + v + ') = ' +
+          oldDist + '. No update.';
+      }
+
+      pushFrame({
+        type: 'relax',
+        currentNode: u,
+        processingNode: u,
+        activeEdge: { from: u, to: v, reason: reason },
+        description: desc,
+      });
+    });
+  }
+
+  pushFrame({
+    type: 'done',
+    currentNode: null,
+    processingNode: null,
+    activeEdge: null,
+    description: 'All reachable nodes visited. Every distance and route ' +
+      'below is now final and mathematically shortest from ' + startNode + '.',
+  });
+
+  return frames;
+}
+
+// Export for Node (unit tests) while staying a plain global script in the
+// browser (no bundler / module system required for the demo itself).
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    NODES: NODES,
+    EDGES: EDGES,
+    START_NODE: START_NODE,
+    ADJACENCY: ADJACENCY,
+    edgeKey: edgeKey,
+    edgeWeight: edgeWeight,
+    pathTo: pathTo,
+    formatPath: formatPath,
+    computeFrames: computeFrames,
+  };
+}

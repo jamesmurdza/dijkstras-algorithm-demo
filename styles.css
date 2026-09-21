@@ -1,0 +1,346 @@
+/*
+ * styles.css
+ * ----------
+ * Visual language: a "subway map" — thin rounded lines, distinct flat
+ * node colors, subtle gray background edges, no heavy outlines/casings
+ * around colored routes. Layout is a responsive two-column grid that
+ * stacks to a single column on narrow/mobile viewports.
+ *
+ * Color roles use CSS custom properties (light values here, dark values
+ * under prefers-color-scheme) so the same rules apply in both themes -
+ * only the tokens change. Node/route colors themselves stay identical in
+ * both themes since they are drawn as bright flat fills on a light SVG
+ * canvas that does not switch to a dark surface (a subway map's own
+ * "paper" stays light so its line colors keep their standard reading).
+ */
+
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --surface-2: #f2f1ee;
+  --page: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --border: rgba(11, 11, 11, 0.1);
+  --edge-gray: #c3c2b7;
+  --edge-gray-label-bg: #fcfcfb;
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+  --status-good: #0ca30c;
+  --status-warning: #d98c00;
+  --status-select: #3a3a38;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8d86;
+    --border: rgba(255, 255, 255, 0.12);
+    --edge-gray: #4a4a47;
+    --edge-gray-label-bg: #1a1a19;
+    --accent: #3987e5;
+    --accent-ink: #ffffff;
+    --status-good: #29c229;
+    --status-warning: #e6a53a;
+    --status-select: #d8d8d4;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--text-primary);
+}
+
+.app { max-width: 1180px; margin: 0 auto; padding: 20px 20px 40px; }
+
+.app-header h1 { font-size: clamp(1.3rem, 2.5vw, 1.8rem); margin: 0 0 6px; }
+.subtitle { color: var(--text-secondary); max-width: 62ch; line-height: 1.5; margin: 0 0 20px; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ------------------------- graph panel ------------------------- */
+
+.graph-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.graph-container { width: 100%; }
+.graph-container svg { width: 100%; height: auto; display: block; color-scheme: light; }
+
+.graph-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 10px 2px 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.hint-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+.hint-swatch--edge { background: var(--edge-gray); }
+.hint-swatch--active { background: var(--status-warning); }
+
+/* SVG always renders on a fixed light "paper" surface (like a real transit
+   map) so the 8 route colors keep consistent, validated contrast against
+   a known background regardless of the page's own light/dark theme. */
+.graph-container svg { background: #fcfcfb; border-radius: 10px; }
+
+.edge-base {
+  stroke: #c3c2b7;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.edge-weight rect {
+  fill: #fcfcfb;
+  stroke: #e1e0d9;
+  stroke-width: 1;
+}
+.edge-weight text {
+  fill: #898781;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colored destination routes: thin, rounded, no casing/outline. */
+.route-path {
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.route-path.is-visible { opacity: 1; }
+
+/* Transient highlight for "this edge is being relaxed right now". */
+.active-edge {
+  stroke: #d98c00;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 2 8;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.active-edge.is-visible {
+  opacity: 0.9;
+  animation: dash-flow 0.6s linear infinite;
+}
+.active-edge--no-change { stroke: #9a9890; }
+.active-edge--improved,
+.active-edge--discovered { stroke: #d98c00; }
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: -20; }
+}
+
+.node-circle {
+  stroke: #fcfcfb;
+  stroke-width: 2.5;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+.node-label {
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.node-halo {
+  fill: none;
+  stroke: none;
+  transition: stroke 0.2s ease, opacity 0.2s ease;
+}
+.node-badge-rect {
+  fill: #fcfcfb;
+  stroke: #d8d7d0;
+  stroke-width: 1;
+}
+.node-badge-text {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #0b0b0b;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.node.is-unreached .node-circle { opacity: 0.35; }
+.node.is-unreached .node-badge-text { fill: #898781; }
+
+.node.is-visited .node-circle { stroke: #0b0b0b; stroke-width: 2.5; }
+
+.node.is-current .node-halo {
+  stroke: #d98c00;
+  stroke-width: 3;
+  opacity: 1;
+  animation: pulse-halo 1.1s ease-in-out infinite;
+}
+@keyframes pulse-halo {
+  0%, 100% { r: 25; opacity: 0.9; }
+  50% { r: 29; opacity: 0.35; }
+}
+
+/* ------------------------- info panel ------------------------- */
+
+.info-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.step-box {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.step-box__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.frame-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--status-select);
+}
+.frame-badge--init { background: var(--text-muted); }
+.frame-badge--visit { background: var(--status-select); }
+.frame-badge--relax { background: var(--status-warning); }
+.frame-badge--done { background: var(--status-good); }
+
+.step-counter {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.step-description {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.94rem;
+  min-height: 4.5em;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+}
+.btn {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.slider-row { display: flex; align-items: center; }
+#step-slider { width: 100%; }
+
+.table-wrap { overflow-x: auto; }
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+.stats-table caption {
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  margin-bottom: 6px;
+}
+.stats-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+}
+.stats-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.stats-table td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.stats-table td.route-cell { color: var(--text-secondary); white-space: nowrap; }
+
+.stats-row.is-current td { background: rgba(217, 140, 0, 0.12); font-weight: 600; }
+.stats-row.is-visited:not(.is-current) td { color: var(--text-primary); }
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.app-footer {
+  margin-top: 22px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+.app-footer code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ------------------------- small screens ------------------------- */
+@media (max-width: 480px) {
+  .controls { grid-template-columns: 1fr 1fr; }
+  .step-description { min-height: unset; }
+}
