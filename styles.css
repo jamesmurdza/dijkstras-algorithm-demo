@@ -326,11 +326,13 @@ body {
 
 /* ------------------------- toolbar ------------------------- */
 
-/* No filled surface/box behind the bar anymore - just a hairline divider
-   off the canvas above it, matching the header's equally plain treatment
-   above the canvas on the other side. Flat icon buttons with no border
-   or fill by default (see .btn below) read as controls belonging to that
-   quiet strip rather than a distinct panel of their own. */
+/* No filled surface/box or divider line above the bar - it shares the
+   canvas's exact background color (--canvas), so the two read as one
+   continuous surface with no seam, matching the header's equally plain
+   treatment above the canvas on the other side. Flat icon buttons with
+   no border or fill by default (see .btn below) read as controls
+   belonging to that quiet strip rather than a distinct panel of their
+   own. */
 .toolbar {
   flex: 0 0 auto;
   display: flex;
@@ -338,7 +340,6 @@ body {
   gap: 4px;
   padding: 8px 12px;
   background: var(--canvas);
-  border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
 
