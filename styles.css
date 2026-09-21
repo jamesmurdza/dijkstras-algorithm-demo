@@ -8,9 +8,13 @@
  * Layout: one large canvas (the graph) filling the viewport, with a thin
  * toolbar docked at the bottom (Reset/Back/slider/Next/Play + two panel
  * toggles). The step-description and stats-table panels are NOT part of
- * the permanent layout - they're an overlay "drawer" that floats above
- * the toolbar and is only in the DOM's visible flow when a toggle button
- * opens it, so the canvas stays the whole UI by default.
+ * the permanent layout - they live in a sidebar docked to the right of
+ * the canvas (a real flex sibling, not an overlay - the canvas shrinks
+ * to make room for it) that's only in the DOM's visible flow when a
+ * toolbar toggle opens it, so the canvas stays the whole UI by default.
+ * On narrow/mobile viewports there isn't room to share the row, so the
+ * sidebar switches to a full-height overlay sliding in from the right
+ * instead (see the small-screens media query at the bottom of this file).
  *
  * Color roles use CSS custom properties (light values here, dark values
  * under prefers-color-scheme) so the same rules apply in both themes -
@@ -78,18 +82,26 @@ body {
 .app-header {
   flex: 0 0 auto;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
 }
 .app-header h1 {
   font-size: clamp(1rem, 2vw, 1.25rem);
   margin: 0;
 }
 
-/* ------------------------- canvas (the graph) ------------------------- */
+/* ------------------------- main row (canvas + sidebar) ------------------------- */
+
+.main-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  position: relative; /* positioning context for the sidebar's mobile overlay mode */
+  overflow: hidden;
+}
 
 .canvas-area {
   flex: 1 1 auto;
-  min-height: 0;
+  min-width: 0;
   position: relative;
   background: #fcfcfb;
 }
@@ -198,19 +210,14 @@ body {
   .current-chevron { animation: none; }
 }
 
-/* ------------------------- drawer (Step Info / Table overlay) ------------------------- */
+/* ------------------------- sidebar (Step Info / Table) ------------------------- */
 
 .drawer {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  max-height: min(50vh, 420px);
+  flex: 0 0 320px;
+  max-width: 40vw;
   overflow-y: auto;
   background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  border-left: 1px solid var(--border);
   padding: 14px 16px;
 }
 .drawer[hidden] { display: none; }
@@ -375,5 +382,19 @@ body {
   .toolbar { padding: 6px 8px; gap: 2px; }
   .btn--icon { width: 32px; height: 32px; font-size: 0.9rem; }
   .slider { flex-basis: 100%; order: -1; margin: 0; }
-  .drawer { left: 8px; right: 8px; bottom: 8px; max-height: 60vh; }
+
+  /* Not enough width to dock the sidebar beside the canvas here - it
+     becomes a full-height overlay sliding in from the right instead
+     (positioned against .main-area, set to `position: relative` above),
+     covering the canvas rather than sharing space with it. */
+  .drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    flex-basis: auto;
+    width: 85vw;
+    max-width: 320px;
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.16);
+  }
 }

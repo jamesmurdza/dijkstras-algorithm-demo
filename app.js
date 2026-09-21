@@ -381,13 +381,13 @@
   var btnReset = document.getElementById('btn-reset');
   var btnPlay = document.getElementById('btn-play');
 
-  // The step-description and stats-table live in an overlay "drawer"
-  // that floats above the toolbar. It's closed by default (canvas-only
-  // UI); either toggle button opens it showing that panel, and clicking
-  // the already-active toggle closes it again. The underlying content of
+  // The step-description and stats-table live in a sidebar docked next
+  // to the canvas. It's closed by default (canvas-only UI); either
+  // toggle button opens it showing that panel, and clicking the
+  // already-active toggle closes it again. The underlying content of
   // both panels is still kept fully up to date on every render() call
-  // regardless of whether the drawer is open, so opening it always shows
-  // the current step immediately.
+  // regardless of whether the sidebar is open, so opening it always
+  // shows the current step immediately.
   var drawer = document.getElementById('drawer');
   var drawerStepPanel = document.getElementById('drawer-step');
   var drawerTablePanel = document.getElementById('drawer-table');

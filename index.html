@@ -12,18 +12,22 @@
       <h1>Dijkstra's Algorithm</h1>
     </header>
 
-    <!-- One large canvas: the graph is the whole UI above the toolbar.
-         The step/table drawers are overlays toggled from the toolbar -
-         they don't take space away from the canvas until opened. -->
-    <main class="canvas-area" aria-label="Graph visualization">
-      <div id="graph-container" class="graph-container">
-        <!-- SVG graph is built and updated entirely by app.js -->
+    <!-- Main row: the graph canvas plus an optional sidebar. The sidebar
+         (step/table) is docked in normal flex flow, not an overlay - the
+         canvas shrinks to make room for it - and is only in the DOM's
+         visible flow when a toolbar toggle opens it, so the canvas stays
+         the whole UI by default. -->
+    <main class="main-area">
+      <div class="canvas-area" aria-label="Graph visualization">
+        <div id="graph-container" class="graph-container">
+          <!-- SVG graph is built and updated entirely by app.js -->
+        </div>
       </div>
 
-      <!-- Drawer: shows EITHER the current-step panel OR the status
+      <!-- Sidebar: shows EITHER the current-step panel OR the status
            table, toggled by the two buttons on the right of the toolbar.
            Hidden by default. -->
-      <section id="drawer" class="drawer" aria-label="Details" hidden>
+      <aside id="drawer" class="drawer" aria-label="Details" hidden>
         <div id="drawer-step" class="drawer-panel">
           <div class="step-box__top">
             <span id="frame-badge" class="frame-badge">Init</span>
@@ -48,7 +52,7 @@
             </table>
           </div>
         </div>
-      </section>
+      </aside>
     </main>
 
     <!-- Toolbar: the only other piece of UI besides the canvas. Reset /
