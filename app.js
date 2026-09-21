@@ -440,12 +440,6 @@
         cancelGrow(el);
         el.classList.remove('is-visible');
       }
-      // A route is drawn at reduced opacity while it's still tentative
-      // (the destination has been discovered but not yet visited/
-      // finalized by the algorithm) and snaps to full opacity the moment
-      // that destination node is actually visited - mirrors the node
-      // dimming below, so a trail and its endpoint node settle together.
-      el.classList.toggle('is-settled', !!frame.visited[node]);
     });
 
     // --- base edges: solid once part of the current shortest-path tree,
