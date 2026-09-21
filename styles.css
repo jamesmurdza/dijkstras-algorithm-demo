@@ -171,16 +171,31 @@ body {
 /* "You are here" marker: hidden on every node by default, shown only on
    the one node currently being visited/relaxed (.node.is-current) - see
    app.js, which toggles that class straight from the frame's
-   `processingNode`. A plain static solid triangle (no pulsing/bouncing)
-   so it reads as a calm pointer rather than a distracting animation. */
+   `processingNode`. A thin paper-colored border (matching the node
+   circles' own stroke) keeps it visually distinct from whatever color
+   the node underneath happens to be, and a small vertical bounce draws
+   the eye to it without being distracting (kept slow/subtle, and turned
+   off entirely for prefers-reduced-motion below). */
 .current-chevron {
   fill: var(--status-select);
-  stroke: none;
+  stroke: #fcfcfb;
+  stroke-width: 1;
+  stroke-linejoin: round;
   opacity: 0;
   pointer-events: none;
 }
 .node.is-current .current-chevron {
   opacity: 1;
+  animation: chevron-bounce 1s ease-in-out infinite;
+}
+
+@keyframes chevron-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .current-chevron { animation: none; }
 }
 
 /* ------------------------- drawer (Step Info / Table overlay) ------------------------- */
