@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var NODE_R = 18;
+  var NODE_R = 12; // just big enough to fit a single bold letter
   var NODE_ORDER = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
@@ -134,7 +134,7 @@
 
     var halo = svgEl('circle', { class: 'node-halo', r: NODE_R + 7 });
     var circle = svgEl('circle', { class: 'node-circle', r: NODE_R, fill: n.color });
-    var label = svgEl('text', { class: 'node-label', y: 5, 'text-anchor': 'middle', fill: textColorFor(n.color) });
+    var label = svgEl('text', { class: 'node-label', y: 4, 'text-anchor': 'middle', fill: textColorFor(n.color) });
     label.textContent = node;
 
     g.appendChild(halo);

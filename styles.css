@@ -163,11 +163,11 @@ body {
 
 .node-circle {
   stroke: #fcfcfb;
-  stroke-width: 2.5;
+  stroke-width: 1.5;
   transition: filter 0.2s ease, opacity 0.2s ease;
 }
 .node-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   pointer-events: none;
 }
@@ -178,7 +178,9 @@ body {
 }
 .node.is-unreached .node-circle { opacity: 0.35; }
 
-.node.is-visited .node-circle { stroke: #0b0b0b; stroke-width: 2.5; }
+/* Visited nodes keep the same thin border as every other node (the
+   default paper-colored stroke set on .node-circle below) - no extra
+   black ring is added just for having been visited. */
 
 .node.is-current .node-halo {
   stroke: #d98c00;
@@ -187,8 +189,8 @@ body {
   animation: pulse-halo 1.1s ease-in-out infinite;
 }
 @keyframes pulse-halo {
-  0%, 100% { r: 25; opacity: 0.9; }
-  50% { r: 29; opacity: 0.35; }
+  0%, 100% { r: 19; opacity: 0.9; }
+  50% { r: 23; opacity: 0.35; }
 }
 
 /* ------------------------- drawer (Step Info / Table overlay) ------------------------- */
