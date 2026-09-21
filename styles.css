@@ -168,17 +168,14 @@ body {
   pointer-events: none;
 }
 
-/* "You are here" chevron: hidden on every node by default, shown only on
+/* "You are here" marker: hidden on every node by default, shown only on
    the one node currently being visited/relaxed (.node.is-current) - see
    app.js, which toggles that class straight from the frame's
-   `processingNode`. A plain static shape (no pulsing/bouncing) so it
-   reads as a calm pointer rather than a distracting animation. */
+   `processingNode`. A plain static solid triangle (no pulsing/bouncing)
+   so it reads as a calm pointer rather than a distracting animation. */
 .current-chevron {
-  fill: none;
-  stroke: var(--status-select);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: var(--status-select);
+  stroke: none;
   opacity: 0;
   pointer-events: none;
 }

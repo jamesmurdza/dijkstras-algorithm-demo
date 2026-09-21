@@ -23,10 +23,11 @@
   var NODE_ORDER = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
   // Geometry (local to a node's own <g>, which is already translated to
-  // its center) for the small "currently visiting" chevron floating just
-  // above the node, pointing straight down at it.
-  var CHEVRON_HALF_W = 5; // half-width of the two open arms
-  var CHEVRON_TOP_Y = -(NODE_R + 11); // y of the two arm tips (higher up)
+  // its center) for the small "currently visiting" marker floating just
+  // above the node: a solid upside-down triangle pointing straight down
+  // at it.
+  var CHEVRON_HALF_W = 5; // half-width of the flat top edge
+  var CHEVRON_TOP_Y = -(NODE_R + 11); // y of the flat top edge
   var CHEVRON_TIP_Y = -(NODE_R + 5); // y of the bottom point (closer to the node)
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
@@ -312,14 +313,17 @@
     var label = svgEl('text', { class: 'node-label', y: 4, 'text-anchor': 'middle', fill: textColorFor(n.color) });
     label.textContent = node;
 
-    // Small "you are here" chevron, pointing straight down into the node.
-    // Hidden by default (see .current-chevron in styles.css) and only
-    // shown while this node is frame.processingNode - i.e. exactly the
-    // node the algorithm is actively visiting/relaxing edges from right
-    // now, distinct from "visited" (done) or merely "discovered" nodes.
+    // Small "you are here" marker - a solid upside-down triangle sitting
+    // just above the node, pointing straight down into it. Hidden by
+    // default (see .current-chevron in styles.css) and only shown while
+    // this node is frame.processingNode - i.e. exactly the node the
+    // algorithm is actively visiting/relaxing edges from right now,
+    // distinct from "visited" (done) or merely "discovered" nodes.
     var chevron = svgEl('path', {
       class: 'current-chevron',
-      d: 'M ' + -CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y + ' L 0 ' + CHEVRON_TIP_Y + ' L ' + CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y,
+      d: 'M ' + -CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y +
+        ' L ' + CHEVRON_HALF_W + ' ' + CHEVRON_TOP_Y +
+        ' L 0 ' + CHEVRON_TIP_Y + ' Z',
     });
 
     g.appendChild(circle);
