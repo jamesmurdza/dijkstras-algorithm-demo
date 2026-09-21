@@ -191,6 +191,23 @@ body {
   pointer-events: none;
 }
 
+/* Draggable "toy" behavior: app.js's makeDraggable drives the actual
+   motion (and every connected edge/route line following along) by
+   mutating NODES[node].x/y and re-laying-out the graph on every pointer-
+   move/animation frame - see repositionGraph() and springNodeHome() in
+   app.js - rather than a CSS transform/transition, since plain CSS can't
+   animate SVG line endpoints or path shapes. This block is just the
+   pointer affordance: a grab cursor that becomes "grabbing" while held.
+   touch-action: none stops touchscreens from also trying to scroll/zoom
+   the page while dragging a node. */
+.node {
+  cursor: grab;
+  touch-action: none;
+}
+.node.is-dragging {
+  cursor: grabbing;
+}
+
 /* "You are here" marker: a single shared element (see currentMarkerGroup
    in app.js) that app.js slides to whichever node is currently being
    visited/relaxed, straight from the frame's `processingNode`. Hidden by

@@ -22,6 +22,14 @@
   var NODE_R = 12; // just big enough to fit a single bold letter
   var NODE_ORDER = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
+  // The graph's real, permanent layout - captured once, before anything
+  // ever touches NODES[node].x/y, so dragging (a tactile toy - see
+  // makeDraggable() below) always knows exactly where "home" is to
+  // spring a node back to, even though it temporarily mutates the very
+  // same NODES object the rest of the app treats as fixed truth.
+  var HOME = {};
+  NODE_ORDER.forEach(function (node) { HOME[node] = { x: NODES[node].x, y: NODES[node].y }; });
+
   // Geometry (local to the marker's own position - see currentMarkerGroup
   // below) for the small "currently visiting" marker floating above a
   // node: a solid upside-down triangle pointing straight down at it.
@@ -263,6 +271,10 @@
   // CURRENT frame's paths actually run through, straight from the same
   // `collectEdgeUsage` routing.js uses to lay out the colored lines.
   var edgeEls = {};
+  // One entry per edge with everything layoutNodesAndEdges() needs to
+  // re-derive its line endpoints + weight-label position live from
+  // NODES, whenever a node gets dragged - see that function below.
+  var edgeGeom = [];
   EDGES.forEach(function (edge) {
     var a = NODES[edge[0]], b = NODES[edge[1]], w = edge[2];
     var lineEl = svgEl('line', {
@@ -285,6 +297,8 @@
     text.textContent = w;
     labelGroup.appendChild(text);
     gEdgeLabels.appendChild(labelGroup);
+
+    edgeGeom.push({ from: edge[0], to: edge[1], lineEl: lineEl, labelEl: labelGroup });
   });
 
   // One reusable <path> per destination (A..H) for its colored route.
@@ -339,6 +353,190 @@
   currentMarkerGroup.appendChild(currentMarkerTriangle);
   gNodes.appendChild(currentMarkerGroup);
   var lastProcessingNode = null; // so renderStep() can tell "moved" apart from "just appeared"
+
+  // -------------------------------------------------------------
+  // Draggable nodes - a tactile toy, not a real "move the node" feature.
+  // Node positions are fixed by design (per the spec), so nothing about
+  // the algorithm/graph DATA ever changes here; this only ever reads
+  // NODES[node].x/y right back out of HOME once a drag ends. What DOES
+  // move for real while dragging is temporarily mutating that same
+  // NODES[node] entry (the one thing every other piece of geometry in
+  // this file and in routing.js already reads positions from) and then
+  // re-running the same layout/route-building logic those normally only
+  // run once - so every connected edge and colored route line follows
+  // the dragged node live, instead of only the node itself moving while
+  // its lines stay behind.
+  // -------------------------------------------------------------
+
+  // Re-derives node <g> positions, base-edge line endpoints, and weight-
+  // label positions purely from the current NODES x/y values. Frame-
+  // independent (distances/routes aren't touched here - see
+  // repositionGraph below for that), so this alone is also exactly what
+  // "put the layout back to normal" means after a drag.
+  function layoutNodesAndEdges() {
+    NODE_ORDER.forEach(function (node) {
+      var n = NODES[node];
+      nodeEls[node].g.setAttribute('transform', 'translate(' + n.x + ',' + n.y + ')');
+    });
+    placedLabelPoints.length = 0; // re-run findLabelPoint's collision-avoidance from scratch
+    edgeGeom.forEach(function (edge) {
+      var a = NODES[edge.from], b = NODES[edge.to];
+      edge.lineEl.setAttribute('x1', a.x);
+      edge.lineEl.setAttribute('y1', a.y);
+      edge.lineEl.setAttribute('x2', b.x);
+      edge.lineEl.setAttribute('y2', b.y);
+      var labelPt = findLabelPoint(a, b);
+      edge.labelEl.setAttribute('transform', 'translate(' + labelPt.x + ',' + labelPt.y + ')');
+    });
+  }
+
+  // Full live redraw used while a node is actively being dragged or
+  // springing back: node/edge/label geometry (above) PLUS the colored
+  // route paths and the current-node marker, both instantly re-derived
+  // from whatever NODES currently says (no morph/grow animation - those
+  // are for algorithm step changes, not a pointer drag). Deliberately
+  // separate from renderStep()'s own route/marker logic, which stays in
+  // charge of animating those normally; this only runs mid-drag/spring,
+  // in between algorithm steps.
+  function repositionGraph() {
+    layoutNodesAndEdges();
+    var frame = frames[currentIndex];
+    var allPaths = buildAllPaths(frame);
+    Object.keys(routeEls).forEach(function (node) {
+      var d = allPaths[node];
+      if (d) routeEls[node].setAttribute('d', d);
+    });
+    if (frame.processingNode) {
+      var mn = NODES[frame.processingNode];
+      currentMarkerGroup.style.transform = 'translate(' + mn.x + 'px, ' + mn.y + 'px)';
+    }
+  }
+
+  // Standard "ease out back" curve (overshoots past 1 then settles) so a
+  // released node visibly springs past its real position and gently
+  // rebounds into place, instead of just gliding straight to a stop.
+  function easeOutBack(t) {
+    var c1 = 1.70158, c3 = c1 + 1, p = t - 1;
+    return 1 + c3 * p * p * p + c1 * p * p;
+  }
+
+  var prefersReducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var springAnims = {}; // node -> requestAnimationFrame id, so re-grabbing mid-spring cancels it cleanly
+
+  function cancelSpring(node) {
+    if (springAnims[node]) {
+      cancelAnimationFrame(springAnims[node]);
+      springAnims[node] = null;
+    }
+  }
+
+  // Animates NODES[node] from wherever it currently is back to its real
+  // HOME position, repositioning the whole connected graph (see
+  // repositionGraph above) on every frame, so the snap-back reads as one
+  // elastic motion pulling the node AND its edges/routes back together.
+  function springNodeHome(node) {
+    cancelSpring(node);
+    var fromX = NODES[node].x, fromY = NODES[node].y;
+    var toX = HOME[node].x, toY = HOME[node].y;
+    if (prefersReducedMotion || (fromX === toX && fromY === toY)) {
+      NODES[node].x = toX;
+      NODES[node].y = toY;
+      repositionGraph();
+      return;
+    }
+    var duration = 550;
+    var start = null;
+    function tick(ts) {
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / duration);
+      var eased = easeOutBack(t);
+      NODES[node].x = fromX + (toX - fromX) * eased;
+      NODES[node].y = fromY + (toY - fromY) * eased;
+      repositionGraph();
+      if (t < 1) {
+        springAnims[node] = requestAnimationFrame(tick);
+      } else {
+        NODES[node].x = toX;
+        NODES[node].y = toY;
+        repositionGraph();
+        springAnims[node] = null;
+      }
+    }
+    springAnims[node] = requestAnimationFrame(tick);
+  }
+
+  // Resets every node straight to HOME with no animation - used as a
+  // safety net at the top of renderStep() so stepping the algorithm
+  // (Next/Back/Reset/slider/Play) always starts from the real layout,
+  // discarding any drag/spring-back visual state instantly rather than
+  // fighting it.
+  function snapAllNodesHome() {
+    NODE_ORDER.forEach(function (node) {
+      cancelSpring(node);
+      NODES[node].x = HOME[node].x;
+      NODES[node].y = HOME[node].y;
+    });
+    layoutNodesAndEdges();
+  }
+
+  // Distance (in SVG user units) a raw pointer displacement eases toward
+  // but never quite reaches - pulling harder keeps giving less, like an
+  // actual rubber band, instead of the node following the pointer 1:1
+  // forever.
+  var RUBBER_BAND_LIMIT = 34;
+  function rubberBand(dx, dy) {
+    var dist = Math.hypot(dx, dy);
+    if (dist < 0.001) return { x: 0, y: 0 };
+    var damped = RUBBER_BAND_LIMIT * (1 - Math.exp(-dist / RUBBER_BAND_LIMIT));
+    var scale = damped / dist;
+    return { x: dx * scale, y: dy * scale };
+  }
+
+  function makeDraggable(node) {
+    var g = nodeEls[node].g;
+    var dragging = false;
+    var startClientX = 0, startClientY = 0;
+    var baseOffsetX = 0, baseOffsetY = 0; // NODES[node]'s offset from HOME when the drag started (0 unless grabbed mid-spring)
+
+    g.addEventListener('pointerdown', function (e) {
+      // Only the primary button/touch/pen contact starts a drag - and
+      // ignore it entirely while the algorithm is auto-playing, so a
+      // stray drag can't fight the Play loop's own rendering.
+      if (e.button !== 0 || playTimer) return;
+      cancelSpring(node);
+      dragging = true;
+      startClientX = e.clientX;
+      startClientY = e.clientY;
+      baseOffsetX = NODES[node].x - HOME[node].x;
+      baseOffsetY = NODES[node].y - HOME[node].y;
+      g.classList.add('is-dragging');
+      g.setPointerCapture(e.pointerId);
+    });
+
+    g.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      var ctm = svg.getScreenCTM();
+      var rawDx = baseOffsetX + (e.clientX - startClientX) / ctm.a;
+      var rawDy = baseOffsetY + (e.clientY - startClientY) / ctm.d;
+      var offset = rubberBand(rawDx, rawDy);
+      NODES[node].x = HOME[node].x + offset.x;
+      NODES[node].y = HOME[node].y + offset.y;
+      repositionGraph();
+    });
+
+    function endDrag(e) {
+      if (!dragging) return;
+      dragging = false;
+      g.classList.remove('is-dragging');
+      g.releasePointerCapture(e.pointerId);
+      springNodeHome(node);
+    }
+    g.addEventListener('pointerup', endDrag);
+    g.addEventListener('pointercancel', endDrag);
+  }
+
+  NODE_ORDER.forEach(makeDraggable);
 
   // -------------------------------------------------------------
   // Stats table rows (built once, text content updated per render).
@@ -440,6 +638,11 @@
   // The single render function every control funnels through.
   // ---------------------------------------------------------------
   function renderStep(index) {
+    // Stepping the algorithm always starts from the real layout - drop
+    // any drag/spring-back visual state instantly rather than letting it
+    // linger or fight the render below (see snapAllNodesHome above).
+    snapAllNodesHome();
+
     currentIndex = Math.max(0, Math.min(frames.length - 1, index));
     var frame = frames[currentIndex];
 
