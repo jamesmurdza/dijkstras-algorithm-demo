@@ -133,8 +133,17 @@ body {
 .hint-swatch--edge { background: var(--edge-gray); }
 
 /* Graph edges default to dashed gray ("not part of the current
-   shortest-path tree"); app.js adds .is-used (solid) for whichever edges
-   this frame's paths actually run through. */
+   shortest-path tree"); app.js adds .is-used for whichever edges this
+   frame's paths actually run through.
+   .is-used hides the gray line entirely rather than just switching it to
+   solid: the base line sits exactly on the edge's true centerline, but
+   colored lanes are spaced OUT to either side of it (so parallel routes
+   don't overlap), and when a bundle has an even number of lanes none of
+   them land back on that exact centerline - leaving a sliver of gray
+   visible in the gap between the two middle lanes. The colored lanes
+   already fully communicate "this edge is used"; the gray line
+   underneath is redundant once that's true, so removing it (instead of
+   just de-dashing it) avoids the peek-through regardless of lane count. */
 .edge-base {
   stroke: #c3c2b7;
   stroke-width: 3;
@@ -142,7 +151,7 @@ body {
   stroke-dasharray: 6 5;
 }
 .edge-base.is-used {
-  stroke-dasharray: none;
+  opacity: 0;
 }
 
 .edge-weight rect {
