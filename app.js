@@ -42,6 +42,87 @@
     return yiq >= 150 ? '#0b0b0b' : '#ffffff';
   }
 
+  // -------------------------------------------------------------
+  // Smooth path-shape morphing: when a route's `d` changes because it
+  // just relaxed to a better route (or - stepping Back - "unrelaxed"
+  // back to a worse one), animate the line sweeping into its new shape
+  // instead of snapping instantly.
+  //
+  // CSS `transition: d` only interpolates smoothly when the old and new
+  // path data have the exact same sequence of command types (same number
+  // of M/Q/L segments) - browsers fall back to an instant jump otherwise.
+  // Our paths change hop count constantly (a 2-hop path can become a
+  // 5-hop path in a single relax), so that structural match essentially
+  // never holds here. Instead we resample BOTH shapes into the same
+  // fixed number of points along their arc length - using the browser's
+  // own getPointAtLength()/getTotalLength(), so it works on any mix of
+  // curves and lines without us hand-rolling bezier math - then animate a
+  // plain point-to-point interpolated polyline between them frame by
+  // frame via requestAnimationFrame, and swap in the real, precise path
+  // data the instant the animation lands.
+  // -------------------------------------------------------------
+  var MORPH_DURATION = 380; // ms - well under the 2200ms Play interval
+  var MORPH_SAMPLES = 48;
+
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function samplePathPoints(el, n) {
+    var len = el.getTotalLength();
+    var pts = new Array(n + 1);
+    for (var i = 0; i <= n; i++) {
+      var p = el.getPointAtLength((i / n) * len);
+      pts[i] = { x: p.x, y: p.y };
+    }
+    return pts;
+  }
+
+  function polylineD(fromPts, toPts, t) {
+    var parts = new Array(fromPts.length);
+    for (var i = 0; i < fromPts.length; i++) {
+      var x = fromPts[i].x + (toPts[i].x - fromPts[i].x) * t;
+      var y = fromPts[i].y + (toPts[i].y - fromPts[i].y) * t;
+      parts[i] = (i === 0 ? 'M ' : 'L ') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }
+    return parts.join(' ');
+  }
+
+  function cancelMorph(el) {
+    if (el.__morphFrame) {
+      cancelAnimationFrame(el.__morphFrame);
+      el.__morphFrame = null;
+    }
+  }
+
+  // Animate `el`'s `d` from whatever is currently on screen to `targetD`.
+  // Safe to call again mid-animation (e.g. the slider is being dragged,
+  // or Play advances before the previous morph finished) - it cancels
+  // the in-flight animation and restarts from whatever shape is CURRENTLY
+  // rendered, so a burst of rapid steps never stacks animations or fights
+  // over the element.
+  function morphPathTo(el, targetD) {
+    cancelMorph(el);
+
+    var fromD = el.getAttribute('d');
+    var fromPts = samplePathPoints(el, MORPH_SAMPLES);
+    el.setAttribute('d', targetD);
+    var toPts = samplePathPoints(el, MORPH_SAMPLES);
+    el.setAttribute('d', fromD); // back to the starting shape; the rAF loop below takes it from here
+
+    var start = null;
+    function step(ts) {
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / MORPH_DURATION);
+      el.setAttribute('d', polylineD(fromPts, toPts, easeOutCubic(t)));
+      if (t < 1) {
+        el.__morphFrame = requestAnimationFrame(step);
+      } else {
+        el.setAttribute('d', targetD); // land on the exact, precise geometry
+        el.__morphFrame = null;
+      }
+    }
+    el.__morphFrame = requestAnimationFrame(step);
+  }
+
   var nodeCenters = NODE_ORDER.map(function (node) { return NODES[node]; });
 
   // Pick a point along edge a->b for its weight-label pill that avoids
@@ -274,9 +355,23 @@
       var d = allPaths[node];
       var el = routeEls[node];
       if (d) {
-        el.setAttribute('d', d);
+        var currentD = el.getAttribute('d');
+        var wasVisible = el.classList.contains('is-visible');
+        if (wasVisible && currentD && currentD !== d) {
+          // Already on screen and its shape actually changed (relaxed to
+          // a better route, or - going Back - unrelaxed to a worse one):
+          // sweep into the new shape instead of snapping.
+          morphPathTo(el, d);
+        } else {
+          // First appearance (nothing to morph from), or the shape is
+          // unchanged - just set it directly. The fade-in for a first
+          // appearance is handled by the CSS opacity transition below.
+          cancelMorph(el);
+          el.setAttribute('d', d);
+        }
         el.classList.add('is-visible');
       } else {
+        cancelMorph(el);
         el.classList.remove('is-visible');
       }
     });
