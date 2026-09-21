@@ -31,21 +31,23 @@
  *      direction of travel" for the WHOLE route, at every edge, like a
  *      "keep to your left" rule for someone walking the path from S
  *      onward. See travelPerp() below for why that consistency matters.
- *   5. At every INTERMEDIATE node a route bends through (not S, not its
- *      own destination), taper the lane's offset down to exactly zero
- *      approaching the node and back up to full width leaving it,
- *      instead of holding full offset all the way in and cutting a
- *      corner. Every lane converges to the exact same point - the node's
- *      own center - right where the node's circle is drawn on top of it,
- *      so the convergence point itself is invisible; what's visible is
- *      the whole bundle calmly gathering into the junction and
- *      spreading back out, the way real subway lines visually gather
- *      through a station rather than each track cutting its own corner.
- *      This sidesteps corner-shape questions entirely - there's no
- *      "corner" left to smooth once every lane's offset is zero at the
- *      node. Each path starts and ends by curving exactly into its
- *      endpoint node's center too, so it is always visually obvious
- *      which nodes a route connects.
+ *   5. At EVERY node a route touches - S, any node it bends through, and
+ *      its own destination alike - taper the lane's offset down to
+ *      exactly zero approaching the node and back up to full width
+ *      leaving it, instead of holding full offset all the way in and
+ *      cutting a corner. Every lane converges to the exact same point -
+ *      the node's own center - right where the node's circle is drawn on
+ *      top of it, so the convergence point itself is invisible; what's
+ *      visible is the whole bundle calmly gathering into the junction
+ *      and spreading back out, the way real subway lines visually
+ *      gather through a station rather than each track cutting its own
+ *      corner. This sidesteps corner-shape questions entirely - there's
+ *      no "corner" left to smooth once every lane's offset is zero at
+ *      the node. S and destNode just don't have a "before"/"after" side
+ *      to taper on, since the route starts/ends right there rather than
+ *      passing through - the route's own start/end point is always the
+ *      exact, unrounded center of its endpoint node, so it stays
+ *      visually obvious which nodes a route connects.
  *
  * Because this is recomputed from `frame.dist` / `frame.prev` on every
  * single step, a path is redrawn (and can jump to a completely different
@@ -153,11 +155,10 @@ function buildDestinationPathD(frame, usage, destNode) {
   // direction of travel, so a lane's relative side is consistent for the
   // whole route rather than reset per edge (see travelPerp above).
   //
-  // Alongside the usual full-offset endpoints (fullStart/fullEnd, exactly
-  // like before - used whenever this end is S or destNode, which never
-  // taper), each segment also carries its own direction/perpendicular/
-  // offset so the taper points at an intermediate node can be computed
-  // on demand for whichever segment is on each side of that node.
+  // Each segment carries its own direction/perpendicular/offset so the
+  // taper points on either side of ANY node the route touches - S, an
+  // intermediate node, or destNode - can be computed on demand from
+  // whichever segment is on that side of it.
   var segments = path.slice(0, -1).map(function (from, i) {
     var to = path[i + 1];
     var sorted = [from, to].sort();
@@ -165,13 +166,7 @@ function buildDestinationPathD(frame, usage, destNode) {
     var offset = laneOffset(usage[key], destNode);
     var dir = vecNorm(vecSub(NODES[to], NODES[from]));
     var perp = travelPerp(from, to); // == vecPerp(dir); named form kept for the "why" - see travelPerp above
-    var ox = perp.x * offset, oy = perp.y * offset;
-    var a = NODES[from], b = NODES[to];
-    return {
-      dir: dir, perp: perp, offset: offset,
-      fullStart: { x: a.x + ox, y: a.y + oy },
-      fullEnd: { x: b.x + ox, y: b.y + oy },
-    };
+    return { dir: dir, perp: perp, offset: offset };
   });
 
   // Point TAPER_LEN before/after `node`, still at the given segment's
@@ -184,40 +179,36 @@ function buildDestinationPathD(frame, usage, destNode) {
     return { x: node.x + seg.dir.x * TAPER_LEN + seg.perp.x * seg.offset, y: node.y + seg.dir.y * TAPER_LEN + seg.perp.y * seg.offset };
   }
 
-  // Every point the route's "middle" (between S and destNode) actually
-  // bends at: the full-offset lane start, then for every intermediate
-  // node - taperPointBefore it, the node's own center, taperPointAfter
-  // it - and finally the full-offset lane end. Built as one flat list so
-  // roundedPolylineD can soften every interior vertex uniformly, however
-  // many bends the route happens to make.
-  var midPoints = [segments[0].fullStart];
+  // Every point the whole route bends at, from S to destNode: S's own
+  // exact center, taperPointAfter it (full offset reached), then for
+  // every intermediate node in between - taperPointBefore it, the node's
+  // own center, taperPointAfter it again - and finally taperPointBefore
+  // destNode and destNode's own exact center. S and destNode get the
+  // exact same taper treatment as every intermediate node - they just
+  // don't have a "before" (S) or "after" (destNode) side, since the
+  // route starts/ends right there instead of passing through. Built as
+  // one flat list so roundedPolylineD can soften every interior vertex
+  // uniformly, however many bends the route happens to make - S and
+  // destNode's own centers are the only two points left unrounded (the
+  // route's actual start/end), which is exactly what makes the route
+  // visibly terminate at the right place.
+  var midPoints = [NODES[path[0]], taperPointAfter(NODES[path[0]], segments[0])];
   for (var i = 0; i < segments.length - 1; i++) {
     var node = NODES[path[i + 1]];
     midPoints.push(taperPointBefore(node, segments[i]));
     midPoints.push(node);
     midPoints.push(taperPointAfter(node, segments[i + 1]));
   }
-  midPoints.push(segments[segments.length - 1].fullEnd);
+  midPoints.push(taperPointBefore(NODES[destNode], segments[segments.length - 1]));
+  midPoints.push(NODES[destNode]);
 
-  var startNode = NODES[path[0]]; // always S
-  var d = 'M ' + startNode.x + ' ' + startNode.y;
-
-  // Curve out from S's exact center into the first lane - S never
-  // tapers, it's the start of the whole journey.
-  d += ' Q ' + midpoint(startNode, midPoints[0]) + ' ' + pt(midPoints[0]);
+  var d = 'M ' + pt(midPoints[0]);
   d += roundedPolylineD(midPoints, BEND_ROUND);
-
-  // Curve into the destination node's exact center - destNode never
-  // tapers either - so the route visibly terminates at the right place.
-  var lastMid = midPoints[midPoints.length - 1];
-  var dest = NODES[destNode];
-  d += ' Q ' + midpoint(lastMid, dest) + ' ' + pt(dest);
 
   return d;
 }
 
 function pt(p) { return round(p.x) + ' ' + round(p.y); }
-function midpoint(a, b) { return round((a.x + b.x) / 2) + ' ' + round((a.y + b.y) / 2); }
 function round(n) { return Math.round(n * 10) / 10; }
 
 // Draws a polyline through `points` (assuming the pen is already at
