@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var NODE_R = 12; // just big enough to fit a single bold letter
+  var NODE_R = NODE_RADIUS; // shared with routing.js (dijkstra.js), which rings wraps out from
   var NODE_ORDER = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
