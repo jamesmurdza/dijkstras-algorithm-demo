@@ -24,11 +24,27 @@
  *   4. Offset each edge segment sideways (perpendicular to the edge)
  *      by (laneIndex - middle) * LANE_SPACING pixels.
  *   5. Stitch the offset segments back together with straight runs
- *      between nodes and small quadratic-bezier "rounded corners" at
- *      every intermediate node the path passes through, so bends look
- *      controlled and deliberate instead of jagged. Each path starts
- *      and ends by curving exactly into its endpoint node's center, so
- *      it is always visually obvious which nodes a route connects.
+ *      between nodes and a small cubic-bezier "rounded corner" at every
+ *      intermediate node the path bends through. Each path starts and
+ *      ends by curving exactly into its endpoint node's center, so it is
+ *      always visually obvious which nodes a route connects.
+ *
+ *      That corner curve deliberately does NOT aim its control point at
+ *      the node (an earlier version did, and it looked fine for gentle
+ *      bends - but for a lane far out in a big bundle turning through a
+ *      sharp angle, e.g. the ~138 degree bend at B where the diagonal
+ *      S-B bundle swings up into the vertical B-A bundle, aiming every
+ *      lane's curve at one shared point made the far-out lanes shoot out
+ *      into a long spike before snapping back - the exact same blow-up
+ *      SVG's stroke `miter-limit` exists to prevent for sharp corner
+ *      joins). Instead each lane gets its own two-control-point curve
+ *      where each control point sits a small FIXED distance (CORNER_ROUND)
+ *      from the endpoint, extended along THAT segment's own direction of
+ *      travel - not toward the node at all. The curve then simply
+ *      continues the incoming direction a little, then eases into the
+ *      outgoing direction, with a shape that depends only on the turn
+ *      angle - never on how far offset the lane is or how sharp the turn
+ *      is, so it can't spike regardless of bundle size.
  *
  * Because this is recomputed from `frame.dist` / `frame.prev` on every
  * single step, a path is redrawn (and can jump to a completely different
@@ -37,6 +53,13 @@
  */
 
 var LANE_SPACING = 6; // px between adjacent parallel lanes on a shared edge
+
+// How far (px) a corner's Bezier control points reach along each
+// segment's OWN direction of travel, at every intermediate node a route
+// bends through. Deliberately independent of lane offset and turn angle
+// - see the big comment on buildDestinationPathD's corner-drawing loop
+// for why that independence is exactly the point.
+var CORNER_ROUND = 14;
 
 // ---------------------------------------------------------------------
 // Small vector helpers
@@ -126,11 +149,26 @@ function buildDestinationPathD(frame, usage, destNode) {
   d += ' L ' + pt(first.end);
 
   // Straight lane run for each subsequent edge, joined by a rounded
-  // corner (a quadratic bezier "pulled" toward the real node position)
-  // at every intermediate node the path passes through.
+  // corner at every intermediate node the path bends through - see the
+  // file header for why the control points are placed along each
+  // segment's own tangent direction rather than aimed at the node.
   for (var i = 1; i < segments.length; i++) {
-    var node = NODES[path[i]];
-    d += ' Q ' + pt(node) + ' ' + pt(segments[i].start);
+    var prevDir = vecNorm(vecSub(NODES[path[i]], NODES[path[i - 1]]));
+    var nextDir = vecNorm(vecSub(NODES[path[i + 1]], NODES[path[i]]));
+    // Never reach further than a third of either adjacent true edge -
+    // pure defensive clamping so a future much-shorter edge can't make
+    // the two control points overshoot each other; a no-op at this
+    // graph's actual (much longer) edge lengths.
+    var edgeLenIn = vecLen(vecSub(NODES[path[i]], NODES[path[i - 1]]));
+    var edgeLenOut = vecLen(vecSub(NODES[path[i + 1]], NODES[path[i]]));
+    var r = Math.min(CORNER_ROUND, edgeLenIn / 3, edgeLenOut / 3);
+
+    var p0 = segments[i - 1].end;
+    var p1 = segments[i].start;
+    var c1 = { x: p0.x + prevDir.x * r, y: p0.y + prevDir.y * r };
+    var c2 = { x: p1.x - nextDir.x * r, y: p1.y - nextDir.y * r };
+
+    d += ' C ' + pt(c1) + ' ' + pt(c2) + ' ' + pt(p1);
     d += ' L ' + pt(segments[i].end);
   }
 
