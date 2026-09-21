@@ -189,11 +189,18 @@
 
   var nodeCenters = NODE_ORDER.map(function (node) { return NODES[node]; });
 
+  // Every weight label placed so far, so a later edge's label can avoid
+  // sitting on top of an earlier one too (see findLabelPoint below) -
+  // two edges that happen to pass close to each other can otherwise get
+  // their labels placed at nearly the same point independently.
+  var placedLabelPoints = [];
+
   // Pick a point along edge a->b for its weight-label pill that avoids
-  // sitting on top of any node circle. The graph layout is fixed, so a
-  // handful of candidate positions along the edge (starting at the
-  // midpoint, then nudging toward either end) checked once at build time
-  // is enough - no need to redo this per frame.
+  // sitting on top of any node circle OR any other edge's weight label
+  // already placed. The graph layout is fixed, so a handful of candidate
+  // positions along the edge (starting at the midpoint, then nudging
+  // toward either end) checked once at build time is enough - no need to
+  // redo this per frame.
   function findLabelPoint(a, b) {
     var candidates = [0.5, 0.62, 0.38, 0.72, 0.28, 0.8, 0.2];
     for (var c = 0; c < candidates.length; c++) {
@@ -202,11 +209,19 @@
       var hitsNode = nodeCenters.some(function (n) {
         return Math.hypot(p.x - n.x, p.y - n.y) < NODE_R + 13;
       });
-      if (!hitsNode) return p;
+      var hitsLabel = placedLabelPoints.some(function (q) {
+        return Math.hypot(p.x - q.x, p.y - q.y) < 22;
+      });
+      if (!hitsNode && !hitsLabel) {
+        placedLabelPoints.push(p);
+        return p;
+      }
     }
     // Fallback: nothing was collision-free (shouldn't happen on this
     // layout) - just use the midpoint.
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    var fallback = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    placedLabelPoints.push(fallback);
+    return fallback;
   }
 
   // -------------------------------------------------------------
@@ -251,9 +266,9 @@
     edgeEls[edgeKey(edge[0], edge[1])] = lineEl;
 
     // Weight label near the midpoint (nudged off-center only when the
-    // midpoint would otherwise collide with a node circle - see
-    // findLabelPoint), with a small pill behind it for legibility over
-    // crossing/bundled lines.
+    // midpoint would otherwise collide with a node circle or an already-
+    // placed label - see findLabelPoint), with a small pill behind it
+    // for legibility over crossing/bundled lines.
     var labelPt = findLabelPoint(a, b);
     var labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
     labelGroup.appendChild(svgEl('rect', { x: -7, y: -6.5, width: 14, height: 13, rx: 3 }));

@@ -23,16 +23,24 @@
 // destinations A..H so every route keeps a stable, distinguishable color.
 // S is the source/origin, not a "destination", so it gets a neutral ink
 // color instead of a slot from the categorical palette.
+//
+// The x/y positions are computed, not hand-picked: they're the output of
+// tools/generate-layout.js, a small deterministic force-directed layout
+// (all-pairs repulsion + per-edge springs whose rest length scales with
+// that edge's Dijkstra weight, so heavier edges end up visually longer)
+// seeded from a BFS layering out of S and rotated so S reads on the
+// left. Re-running that script reproduces these exact numbers - see its
+// header comment for the full method.
 var NODES = {
-  S: { x: 45, y: 180, color: '#1d1d1b', order: 0 },
-  A: { x: 145, y: 70, color: '#2a78d6', order: 1 },
-  B: { x: 145, y: 290, color: '#eb6834', order: 2 },
-  C: { x: 270, y: 70, color: '#1baf7a', order: 3 },
-  D: { x: 270, y: 290, color: '#eda100', order: 4 },
-  E: { x: 390, y: 350, color: '#e87ba4', order: 5 },
-  F: { x: 410, y: 150, color: '#008300', order: 6 },
-  G: { x: 510, y: 270, color: '#4a3aa7', order: 7 },
-  H: { x: 590, y: 150, color: '#e34948', order: 8 },
+  S: { x: 55, y: 233, color: '#1d1d1b', order: 0 },
+  A: { x: 212, y: 261, color: '#2a78d6', order: 1 },
+  B: { x: 230, y: 127, color: '#eb6834', order: 2 },
+  C: { x: 256, y: 375, color: '#1baf7a', order: 3 },
+  D: { x: 427, y: 189, color: '#eda100', order: 4 },
+  E: { x: 472, y: 55, color: '#e87ba4', order: 5 },
+  F: { x: 401, y: 321, color: '#008300', order: 6 },
+  G: { x: 548, y: 330, color: '#4a3aa7', order: 7 },
+  H: { x: 605, y: 206, color: '#e34948', order: 8 },
 };
 
 // Undirected weighted edges: [nodeA, nodeB, weight]
