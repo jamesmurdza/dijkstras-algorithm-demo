@@ -734,21 +734,26 @@ body {
   background: #757570;
   border-radius: 999px;
 }
+/* A ring, not a solid dot - white hollow center inside a gray border
+   (box-sizing: border-box up top means the border eats into the fixed
+   14px box rather than growing past it, so this stays the exact same
+   footprint the solid dot used to be). */
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
   margin-top: -6px; /* centers the 14px thumb on the 2px track */
   border-radius: 50%;
-  background: #757570;
+  background: #fcfcfb;
+  border: 3px solid #757570;
   cursor: pointer;
 }
 .slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  border: none;
+  border: 3px solid #757570;
   border-radius: 50%;
-  background: #757570;
+  background: #fcfcfb;
   cursor: pointer;
 }
 .slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
