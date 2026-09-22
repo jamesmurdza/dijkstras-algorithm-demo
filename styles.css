@@ -459,7 +459,6 @@ body {
   flex: 0 0 auto;
   min-height: 52px;
   padding: 8px 8px 8px 14px;
-  border-bottom: 1px solid var(--border);
 }
 .sidebar.is-collapsed .sidebar-header {
   justify-content: center;
