@@ -629,7 +629,7 @@ body {
   white-space: nowrap;
 }
 
-.stats-row.is-current td { background: rgba(217, 140, 0, 0.12); font-weight: 600; }
+.stats-row.is-current td { background: rgba(42, 120, 214, 0.12); font-weight: 600; }
 .stats-row.is-visited td { color: var(--text-primary); }
 
 /* Node chip: the exact same "colored circle, letter inside" look the
