@@ -130,14 +130,20 @@ body {
   flex: 0 0 auto;
   position: relative;
 }
+/* A CSS-drawn triangle (border trick) rather than a Unicode '▾' glyph -
+   that glyph's actual rendered size varies wildly by font/OS (on some
+   systems it draws as little more than a speck), where this always
+   renders as the same crisp 8x5px triangle everywhere. */
 .scenario-picker::after {
-  content: '▾';
+  content: '';
   position: absolute;
-  right: 7px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.68rem;
-  color: var(--text-secondary);
+  right: 9px;
+  top: calc(50% - 2px);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-secondary);
   pointer-events: none; /* clicks pass through to the <select> underneath */
 }
 .scenario-picker select {
