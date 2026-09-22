@@ -612,15 +612,25 @@ body {
   border-bottom: 1px solid var(--border);
   padding: 6px 8px;
 }
+/* Lighter gray by default ("still tentative - could yet improve"), full
+   ink once a row is finalized (.stats-row.is-visited below) - this is now
+   the ONLY thing distinguishing "certain" from "not yet" (there used to
+   also be a separate Status icon column; removed in favor of just this,
+   one less thing to visually reconcile with the Distance/Path values
+   sitting right next to it). */
 .stats-table td {
   padding: 7px 8px;
   border-bottom: 1px solid var(--border);
-  color: var(--text-primary);
+  color: var(--text-muted);
 }
 .stats-table td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.path-cell {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
 
 .stats-row.is-current td { background: rgba(217, 140, 0, 0.12); font-weight: 600; }
-.stats-row.is-visited:not(.is-current) td { color: var(--text-primary); }
+.stats-row.is-visited td { color: var(--text-primary); }
 
 /* Node chip: the exact same "colored circle, letter inside" look the
    graph's own nodes use (see .node-circle/.node-label), not a separate
@@ -636,20 +646,6 @@ body {
   font-weight: 700;
   line-height: 1;
 }
-
-/* Status icon, not a word (the word still exists as this cell's
-   title/aria-label - see renderStep in app.js). Colors echo the same
-   roles used elsewhere: muted for not-reached-yet, the "visit" ink for
-   currently processing, good-green for finalized. */
-.status-cell { text-align: center; }
-.status-icon {
-  display: inline-block;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-.status-icon--unvisited { color: var(--text-muted); }
-.status-icon--current { color: var(--status-select); }
-.status-icon--visited { color: var(--status-good); }
 
 /* ------------------------- settings panel ------------------------- */
 

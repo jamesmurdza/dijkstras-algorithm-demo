@@ -980,24 +980,18 @@
       chip.style.color = textColorFor(NODES[node].color);
       tdNode.appendChild(chip);
 
-      // Status is an icon, not a word - the full word still exists as
-      // the cell's title/aria-label (below, in renderStep) so it's not
-      // lost for screen readers or on hover.
-      var tdStatus = document.createElement('td');
-      tdStatus.className = 'status-cell';
-      var statusIcon = document.createElement('span');
-      statusIcon.className = 'status-icon';
-      tdStatus.appendChild(statusIcon);
-
       var tdDist = document.createElement('td');
       tdDist.className = 'num';
 
+      var tdPath = document.createElement('td');
+      tdPath.className = 'path-cell';
+
       tr.appendChild(tdNode);
-      tr.appendChild(tdStatus);
       tr.appendChild(tdDist);
+      tr.appendChild(tdPath);
       tbody.appendChild(tr);
 
-      tableCells[node] = { row: tr, status: tdStatus, statusIcon: statusIcon, dist: tdDist };
+      tableCells[node] = { row: tr, dist: tdDist, path: tdPath };
     });
 
     // -------------------------------------------------------------
@@ -1120,27 +1114,28 @@
       lastProcessingNode = frame.processingNode;
 
       // --- stats table --------------------------------------------------
+      // No more separate status column/icon - "still tentative" vs.
+      // "finalized" is instead just the row's own text color (muted gray
+      // until frame.visited[node], full ink once it is - see
+      // .stats-row.is-visited in styles.css), the same "certain vs. not
+      // yet" distinction the icon used to carry.
       NODE_ORDER.forEach(function (node) {
         var cells = tableCells[node];
         var isCurrent = frame.processingNode === node;
         var isVisited = !!frame.visited[node];
+        // Status used to be its own column/icon with a title/aria-label
+        // ("Visited"/"Unvisited"/"Processing now") - preserved as a plain
+        // tooltip + row aria-label instead of dropping it entirely now
+        // that a row's color alone carries the same distinction visually.
         var statusWord = isCurrent ? 'Processing now' : (isVisited ? 'Visited' : 'Unvisited');
-        // A half-filled circle (not a plain filled one) for "current" - a
-        // solid ● reads too similarly to the hollow ○ used for "unvisited"
-        // at this small a size (same shape, easy to mistake one fill level
-        // for another at a glance); ◐ is unambiguous at any size, and still
-        // reads as "partway between ○ and done" rather than a shape with no
-        // relation to the other two.
-        var statusGlyph = isCurrent ? '◐' : (isVisited ? '✓' : '○');
-        cells.statusIcon.textContent = statusGlyph;
-        cells.statusIcon.className = 'status-icon' +
-          (isCurrent ? ' status-icon--current' : isVisited ? ' status-icon--visited' : ' status-icon--unvisited');
-        // The word itself isn't shown - only the icon is - but it's still
-        // here for a tooltip and for screen readers via aria-label.
-        cells.status.title = statusWord;
-        cells.status.setAttribute('aria-label', statusWord);
         cells.dist.textContent = frame.dist[node] === Infinity ? '∞' : String(frame.dist[node]);
+        cells.dist.title = statusWord;
+        // Same pathTo()/formatPath() dijkstra.js already uses to spell out
+        // "Path: S → A → B" in each step's own description - reused here
+        // rather than re-deriving the predecessor chain a second way.
+        cells.path.textContent = formatPath(pathTo(node, frame.dist, frame.prev));
         cells.row.className = 'stats-row' + (isCurrent ? ' is-current' : '') + (isVisited ? ' is-visited' : '');
+        cells.row.setAttribute('aria-label', node + ': ' + statusWord);
       });
 
       // Correct any hover-highlight desync this render's DOM churn may
