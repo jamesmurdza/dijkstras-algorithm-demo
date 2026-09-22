@@ -70,28 +70,38 @@
           </div>
 
           <div id="tab-pseudocode" class="sidebar-panel" role="tabpanel">
-            <pre class="pseudocode"><code># Find the shortest (weighted) paths from start to all other nodes
-def dijkstra(nodes: list[Node], start: Node) -&gt; dict[Node, float]:
-    # All nodes, and our distance estimates
-    distances = {node: float("inf") for node in nodes}
-    distances[start] = 0
-    # The nodes we've visited already
-    unvisited = set(nodes)
-
-    while unvisited:
-        # u is the node we're visiting
-        u = min(unvisited, key=lambda node: distances[node])
-        unvisited.remove(u)
-
-        # v is each neighbor of u
-        for v in u.neighbors:
-            if v in unvisited:
-                # Relax the edge between u and v
-                new_distance = distances[u] + weight(u, v)
-                distances[v] = min(distances[v], new_distance)
-
-    # All distances are now correct
-    return distances</code></pre>
+            <!-- Line numbers come from a CSS counter (one increment per
+                 .pc-line, see styles.css) rather than being hand-typed here,
+                 so they can't drift out of sync if a line ever gets added or
+                 removed. Syntax coloring is hand-marked-up (a handful of
+                 .pc-* token classes) rather than run through a highlighter
+                 library, matching the rest of this app's no-build-step,
+                 no-dependencies approach - it's ~20 fixed lines of pseudocode,
+                 not a general-purpose code editor. -->
+            <pre class="pseudocode"><code class="pc"
+><span class="pc-line"><span class="pc-line-code"><span class="pc-com"># Find the shortest (weighted) paths from start to all other nodes</span></span></span
+><span class="pc-line"><span class="pc-line-code"><span class="pc-kw">def</span> <span class="pc-def">dijkstra</span>(nodes: <span class="pc-builtin">list</span>[<span class="pc-builtin">Node</span>], start: <span class="pc-builtin">Node</span>) -&gt; <span class="pc-builtin">dict</span>[<span class="pc-builtin">Node</span>, <span class="pc-builtin">float</span>]:</span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All nodes, and our distance estimates</span></span></span
+><span class="pc-line"><span class="pc-line-code">    distances = {node: <span class="pc-builtin">float</span>(<span class="pc-str">"inf"</span>) <span class="pc-kw">for</span> node <span class="pc-kw">in</span> nodes}</span></span
+><span class="pc-line"><span class="pc-line-code">    distances[start] = <span class="pc-num">0</span></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># The nodes we've visited already</span></span></span
+><span class="pc-line"><span class="pc-line-code">    unvisited = <span class="pc-builtin">set</span>(nodes)</span></span
+><span class="pc-line"><span class="pc-line-code"></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">while</span> unvisited:</span></span
+><span class="pc-line"><span class="pc-line-code">        <span class="pc-com"># u is the node we're visiting</span></span></span
+><span class="pc-line"><span class="pc-line-code">        u = <span class="pc-builtin">min</span>(unvisited, key=<span class="pc-kw">lambda</span> node: distances[node])</span></span
+><span class="pc-line"><span class="pc-line-code">        unvisited.remove(u)</span></span
+><span class="pc-line"><span class="pc-line-code"></span></span
+><span class="pc-line"><span class="pc-line-code">        <span class="pc-com"># v is each neighbor of u</span></span></span
+><span class="pc-line"><span class="pc-line-code">        <span class="pc-kw">for</span> v <span class="pc-kw">in</span> u.neighbors:</span></span
+><span class="pc-line"><span class="pc-line-code">            <span class="pc-kw">if</span> v <span class="pc-kw">in</span> unvisited:</span></span
+><span class="pc-line"><span class="pc-line-code">                <span class="pc-com"># Relax the edge between u and v</span></span></span
+><span class="pc-line"><span class="pc-line-code">                new_distance = distances[u] + weight(u, v)</span></span
+><span class="pc-line"><span class="pc-line-code">                distances[v] = <span class="pc-builtin">min</span>(distances[v], new_distance)</span></span
+><span class="pc-line"><span class="pc-line-code"></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All distances are now correct</span></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">return</span> distances</span></span
+></code></pre>
           </div>
 
           <div id="tab-description" class="sidebar-panel" role="tabpanel">

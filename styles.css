@@ -52,6 +52,12 @@
   --accent-ink: #ffffff;
   --status-good: #0ca30c;
   --status-select: #3a3a38;
+  /* Pseudocode syntax-highlight tokens (see .pc-* below). Keywords/strings/
+     comments reuse existing tokens above (--accent, --status-good,
+     --text-muted) rather than inventing near-duplicate hues; these two are
+     genuinely new roles with no existing equivalent. */
+  --syn-number: #9a6200;
+  --syn-builtin: #7c3aed;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -69,6 +75,8 @@
     --accent-ink: #ffffff;
     --status-good: #29c229;
     --status-select: #d8d8d4;
+    --syn-number: #e0a030;
+    --syn-builtin: #b794f6;
   }
 }
 
@@ -501,9 +509,47 @@ body {
   font-size: 0.72rem;
   line-height: 1.6;
   color: var(--text-primary);
+}
+
+/* One flex row per source line: a numbered gutter (an auto-incrementing
+   CSS counter, not hand-typed numbers - see the HTML comment above the
+   markup) plus the code itself. Whitespace/wrapping is scoped to just the
+   code half (.pc-line-code) rather than the whole block like the old
+   plain pre-wrap did, so the gutter numbers can sit in their own column
+   instead of getting swept into the wrapped text. */
+.pseudocode code {
+  display: block;
+  counter-reset: pc-line;
+}
+.pc-line {
+  display: flex;
+}
+.pc-line::before {
+  counter-increment: pc-line;
+  content: counter(pc-line);
+  flex: 0 0 1.6em;
+  margin-right: 10px;
+  text-align: right;
+  color: var(--text-muted);
+  user-select: none;
+}
+.pc-line-code {
+  flex: 1 1 auto;
+  min-width: 0; /* else a flex item won't actually shrink/wrap below its content width */
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+
+/* Syntax coloring - a handful of hand-marked-up token classes (see the
+   HTML), not a general tokenizer. Keywords/strings/comments reuse existing
+   app-wide color tokens rather than inventing near-duplicate hues; only
+   --syn-number/--syn-builtin above are new. */
+.pc-com { color: var(--text-muted); font-style: italic; }
+.pc-kw { color: var(--accent); font-weight: 600; }
+.pc-str { color: var(--status-good); }
+.pc-num { color: var(--syn-number); }
+.pc-builtin { color: var(--syn-builtin); }
+.pc-def { color: var(--text-primary); font-weight: 700; }
 
 /* How-it-works tab: plain prose, same rhythm the old live step
    description used. */
