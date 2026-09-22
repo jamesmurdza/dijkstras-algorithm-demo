@@ -749,12 +749,12 @@ body {
   cursor: pointer;
 }
 .slider::-webkit-slider-runnable-track {
-  height: 2px;
+  height: 1.5px;
   background: #757570;
   border-radius: 999px;
 }
 .slider::-moz-range-track {
-  height: 2px;
+  height: 1.5px;
   background: #757570;
   border-radius: 999px;
 }
@@ -766,16 +766,16 @@ body {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  margin-top: -6px; /* centers the 14px thumb on the 2px track */
+  margin-top: -6px; /* centers the 14px thumb on the 1.5px track */
   border-radius: 50%;
   background: #fcfcfb;
-  border: 3px solid #757570;
+  border: 2px solid #757570;
   cursor: pointer;
 }
 .slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  border: 3px solid #757570;
+  border: 2px solid #757570;
   border-radius: 50%;
   background: #fcfcfb;
   cursor: pointer;
