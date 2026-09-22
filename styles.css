@@ -106,19 +106,13 @@ body {
 /* Scenario picker - top right of the header. A plain, flat <select> (no
    boxed panel/border-heavy styling) so it reads as part of the same
    quiet chrome as the toolbar's icon buttons rather than a separate
-   widget bolted on. */
+   widget bolted on. No visible text label - the select's own current
+   value (a scenario name) already reads as self-explanatory, and
+   aria-label="Graph scenario" on the <select> covers screen readers. */
 .scenario-picker {
   display: flex;
   align-items: center;
-  gap: 8px;
   flex: 0 0 auto;
-}
-.scenario-picker__label {
-  font-size: 0.76rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
 }
 .scenario-picker select {
   font: inherit;
@@ -140,7 +134,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  .scenario-picker__label { display: none; }
   .app-header { flex-wrap: wrap; row-gap: 6px; }
 }
 
