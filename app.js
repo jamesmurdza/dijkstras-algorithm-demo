@@ -271,7 +271,7 @@
   var sidebarTabButtons = Array.prototype.slice.call(document.querySelectorAll('.sidebar-tab'));
   var sidebarPanels = Array.prototype.slice.call(document.querySelectorAll('.sidebar-panel'));
   var sidebarOpen = false;
-  var activeSidebarTab = 'table';
+  var activeSidebarTab = 'description';
   var sidebarWidth = null; // px, only set once the user drags the resize handle - null means "use the CSS default"
 
   function updateSidebarUI() {
