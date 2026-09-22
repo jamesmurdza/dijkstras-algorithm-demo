@@ -256,11 +256,15 @@
   var scenarioSelect = document.getElementById('scenario-select');
 
   // The sidebar (table / settings / pseudocode / how-it-works) is docked
-  // to the LEFT of the canvas. It's closed by default (canvas-only UI);
-  // the toolbar's single toggle opens/closes it, and its own tab strip
-  // (independent of that toggle) switches which one of the four panels
-  // is showing while it's open. Both are independent of which scenario
-  // is loaded, so this is set up once here rather than inside
+  // to the LEFT of the canvas. It's collapsed to just its own header bar
+  // (title + toggle) by default - collapsing/expanding toggles a CSS
+  // class rather than the `hidden` attribute, since the toggle button
+  // now lives INSIDE the sidebar's header (next to the title) and that
+  // header needs to stay visible/reachable even while collapsed, or
+  // there'd be no way to expand it again. Its own tab strip (independent
+  // of that toggle) switches which one of the four panels is showing
+  // while it's expanded. Both are independent of which scenario is
+  // loaded, so this is set up once here rather than inside
   // loadScenario().
   var sidebar = document.getElementById('sidebar');
   var btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
@@ -270,8 +274,11 @@
   var activeSidebarTab = 'table';
 
   function updateSidebarUI() {
-    sidebar.hidden = !sidebarOpen;
+    sidebar.classList.toggle('is-collapsed', !sidebarOpen);
     btnToggleSidebar.setAttribute('aria-pressed', String(sidebarOpen));
+    var toggleLabel = sidebarOpen ? 'Collapse the sidebar' : 'Expand the sidebar';
+    btnToggleSidebar.title = toggleLabel;
+    btnToggleSidebar.setAttribute('aria-label', toggleLabel);
     sidebarTabButtons.forEach(function (btn) {
       var tab = btn.id.replace('tab-btn-', '');
       btn.setAttribute('aria-selected', String(tab === activeSidebarTab));

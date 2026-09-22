@@ -9,28 +9,34 @@
 <body>
   <div class="app">
     <header class="app-header">
-      <h1>Dijkstra's Algorithm Visualization</h1>
       <div class="scenario-picker">
         <select id="scenario-select" aria-label="Graph scenario"></select>
       </div>
     </header>
 
-    <!-- Main row: an optional collapsible sidebar (docked LEFT) plus the
-         graph canvas. The sidebar is in normal flex flow, not an overlay
-         - the canvas shrinks to make room for it - and is only in the
-         DOM's visible flow when the toolbar toggle opens it, so the
-         canvas stays the whole UI by default. Its four tabs (switched
-         with the strip at its own top, independent of the toolbar
-         toggle that opens/closes the whole sidebar) are: the live
-         distances table, display settings, the algorithm's pseudocode,
-         and a plain-English walkthrough of how it works. -->
+    <!-- Main row: a collapsible sidebar (docked LEFT) plus the graph
+         canvas. The sidebar's own header (title + collapse toggle) is
+         always visible; collapsing it shrinks the sidebar down to just
+         that header bar (a slim rail) and hides the tabs/content below
+         it, rather than removing the whole sidebar from the DOM's
+         visible flow - that's what keeps the toggle itself reachable
+         either way. The canvas shrinks to make room whenever it's
+         expanded. Its four tabs (icons only - see their aria-label/title
+         for what each one is) are: the live distances table, display
+         settings, the algorithm's pseudocode, and a plain-English
+         walkthrough of how it works. -->
     <main class="main-area">
-      <aside id="sidebar" class="sidebar" aria-label="Details" hidden>
+      <aside id="sidebar" class="sidebar is-collapsed" aria-label="Details">
+        <div class="sidebar-header">
+          <h1 class="sidebar-title">Dijkstra's Algorithm Visualization</h1>
+          <button id="btn-toggle-sidebar" class="btn btn--icon" type="button" aria-pressed="false" title="Expand the sidebar" aria-label="Expand the sidebar">◧</button>
+        </div>
+
         <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
-          <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table">Table</button>
-          <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
-          <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode">Pseudocode</button>
-          <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description">How it works</button>
+          <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
+          <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
+          <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode" title="Pseudocode" aria-label="Pseudocode">{}</button>
+          <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
         </div>
 
         <div class="sidebar-content">
@@ -119,7 +125,7 @@ def dijkstra(nodes: list[Node], start: Node) -&gt; dict[Node, float]:
 
     <!-- Toolbar: the only other piece of UI besides the canvas. A long
          slider (with its own tick marks, one per step) plus Previous/
-         Next triangles on the left, the sidebar toggle on the right. -->
+         Next triangles. -->
     <footer class="toolbar" role="group" aria-label="Step controls">
       <div class="slider-wrap">
         <input id="step-slider" class="slider" type="range" min="0" max="0" step="1" value="0"
@@ -128,8 +134,6 @@ def dijkstra(nodes: list[Node], start: Node) -&gt; dict[Node, float]:
       </div>
       <button id="btn-back" class="btn btn--icon" type="button" title="Previous step" aria-label="Previous step">◀</button>
       <button id="btn-next" class="btn btn--icon" type="button" title="Next step" aria-label="Next step">▶</button>
-      <span class="toolbar-sep" aria-hidden="true"></span>
-      <button id="btn-toggle-sidebar" class="btn btn--icon btn--toggle" type="button" aria-pressed="false" title="Show the sidebar" aria-label="Show the sidebar">◧</button>
     </footer>
   </div>
 

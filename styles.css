@@ -6,17 +6,19 @@
  * around colored routes.
  *
  * Layout: one large canvas (the graph) filling the viewport, with a thin
- * toolbar docked at the bottom (Reset/Back/slider/Next/Play + a sidebar
- * toggle). The sidebar (its own tab strip switches between the live
- * distances table, display settings, the algorithm's pseudocode, and a
- * plain-English walkthrough) is NOT part of the permanent layout - it's
- * docked to the LEFT of the canvas (a real flex sibling, not an overlay -
- * the canvas shrinks to make room for it) and is only in the DOM's
- * visible flow when the toolbar toggle opens it, so the canvas stays the
- * whole UI by default. On narrow/mobile viewports there isn't room to
- * share the row, so the sidebar switches to a full-height overlay
+ * toolbar docked at the bottom (a tick-marked slider plus Back/Next) and
+ * a sidebar docked to the LEFT of the canvas (a real flex sibling, not
+ * an overlay - the canvas shrinks to make room for it when expanded).
+ * The sidebar carries the app's own title in its own header bar (see
+ * .sidebar-header), which - along with the collapse/expand toggle next
+ * to it - stays visible even while the sidebar is collapsed down to just
+ * that header; its own tab strip (Table / Settings / Pseudocode / How it
+ * works, icons only) switches which panel shows underneath while it's
+ * expanded. On narrow/mobile viewports there isn't room to share the row
+ * with the canvas, so the sidebar switches to a full-height overlay
  * sliding in from the left instead (see the small-screens media query at
- * the bottom of this file).
+ * the bottom of this file) - still collapsible down to just its header
+ * bar the same way.
  *
  * Color roles use CSS custom properties (light values here, dark values
  * under prefers-color-scheme) so the same rules apply in both themes -
@@ -91,18 +93,15 @@ body {
   flex-direction: column;
 }
 
+/* Just the scenario picker now - the app's own title moved into the
+   sidebar's own header (see .sidebar-header below). */
 .app-header {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
   padding: 10px 16px;
   background: var(--canvas);
-}
-.app-header h1 {
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  margin: 0;
 }
 
 /* Scenario picker - top right of the header. A plain, flat <select> (no
@@ -344,8 +343,47 @@ body {
   flex-direction: column;
   background: var(--surface-1);
   border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: flex-basis 0.2s ease, max-width 0.2s ease;
 }
-.sidebar[hidden] { display: none; }
+
+/* Collapsed = shrunk down to just its own header bar (title hidden,
+   tabs/content hidden) - never the `hidden` attribute, since the toggle
+   that re-expands it lives IN that header and has to stay reachable. */
+.sidebar.is-collapsed {
+  flex-basis: 44px;
+  max-width: 44px;
+}
+.sidebar.is-collapsed .sidebar-tabs,
+.sidebar.is-collapsed .sidebar-content {
+  display: none;
+}
+
+/* Always visible regardless of collapsed state - the app's own title
+   plus the button that collapses/expands everything below it. */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 52px;
+  padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar.is-collapsed .sidebar-header {
+  justify-content: center;
+  padding-left: 8px;
+}
+.sidebar-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar.is-collapsed .sidebar-title { display: none; }
 
 /* Tab strip stays fixed at the sidebar's own top; only .sidebar-content
    below it scrolls, so the tabs are always reachable regardless of how
@@ -359,7 +397,7 @@ body {
 .sidebar-tab {
   flex: 1 1 auto;
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 1.05rem;
   font-weight: 700;
   padding: 11px 6px;
   border: none;
@@ -661,11 +699,22 @@ body {
   .btn--icon { width: 32px; height: 32px; font-size: 0.9rem; }
   .slider-wrap { flex-basis: 100%; order: -1; margin: 0; }
 
-  /* Not enough width to dock the sidebar beside the canvas here - it
-     becomes a full-height overlay sliding in from the left instead
-     (positioned against .main-area, set to `position: relative` above),
-     covering the canvas rather than sharing space with it. */
+  /* Collapsed here stays in NORMAL FLEX FLOW at the same narrow 44px
+     rail width as desktop - it shares space with the canvas rather than
+     overlapping it, so the graph (S in particular, which always renders
+     near the far left edge by design) never ends up hidden behind it. */
   .sidebar {
+    flex-basis: 44px;
+    max-width: 44px;
+  }
+
+  /* Not enough width to dock the EXPANDED sidebar beside the canvas here
+     - it becomes a full-height overlay sliding in from the left instead
+     (positioned against .main-area, set to `position: relative` above),
+     covering the canvas rather than sharing space with it - 85vw is only
+     reasonable as a temporary overlay, not something to permanently
+     reserve from the canvas on a small screen. */
+  .sidebar:not(.is-collapsed) {
     position: absolute;
     top: 0;
     left: 0;
@@ -673,7 +722,6 @@ body {
     z-index: 1; /* .sidebar is now first in DOM (for the left-docked desktop layout), so without
                    this it would stack UNDER .canvas-area here and silently eat its own clicks -
                    among positioned siblings with equal z-index, later DOM order wins by default. */
-    flex-basis: auto;
     width: 85vw;
     max-width: 320px;
     box-shadow: 8px 0 28px rgba(0, 0, 0, 0.16);
