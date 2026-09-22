@@ -304,14 +304,14 @@
   });
 
   // -------------------------------------------------------------
-  // Display settings: both off by default. Global (not per-scenario) -
+  // Display settings: both on by default. Global (not per-scenario) -
   // toggling one rebuilds the CURRENTLY active scenario's graph in place
   // (see the checkbox listeners below), preserving whatever step the
   // algorithm run is currently on rather than resetting to the start.
   // -------------------------------------------------------------
   var settings = {
-    showVertexLabels: false,
-    showEdgeWeights: false,
+    showVertexLabels: true,
+    showEdgeWeights: true,
   };
   var currentScenario = SCENARIOS[0]; // updated by the scenario picker below; read back by the settings checkboxes
   var elSettingVertexLabels = document.getElementById('setting-vertex-labels');
