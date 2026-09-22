@@ -674,6 +674,17 @@
       nodeEls[node].g.classList.toggle('is-highlighted', on);
       var rec = routeEls[node];
       if (rec) rec.els.forEach(function (el) { el.classList.toggle('is-highlighted', on); });
+      // Guarded rather than an unconditional show/hide: resyncHoverHighlight()
+      // below calls setHighlighted(node, false) for every OTHER node on every
+      // render, and this bubble is a single shared element (see above) - so
+      // only hide it when the node losing its highlight is the one it's
+      // currently attributed to, or a later node's "show" in the same pass
+      // would get immediately clobbered by an earlier node's "hide".
+      if (on) {
+        showDistanceBubble(node);
+      } else if (bubbleNode === node) {
+        hideDistanceBubble();
+      }
     }
 
     function resyncHoverHighlight() {
@@ -729,6 +740,62 @@
     currentMarkerGroup.appendChild(currentMarkerTriangle);
     gNodes.appendChild(currentMarkerGroup);
     var lastProcessingNode = null; // so renderStep() can tell "moved" apart from "just appeared"
+
+    // Hover distance readout - a small pill showing a node's current
+    // tentative distance ("∞" until discovered, else a number), shown
+    // whenever that node OR its route is hovered (setHighlighted below is
+    // the single place both paths funnel through). Always anchored to the
+    // NODE's own position rather than the cursor, so hovering any point
+    // along a long route still reads out next to the vertex it belongs
+    // to. Same "one shared element, repositioned/relabeled" pattern as
+    // currentMarkerGroup above rather than one per node. Offset up-and-
+    // right (not straight up) so it doesn't collide with the "you are
+    // here" triangle, which already owns the space directly above a node.
+    var distanceBubbleGroup = svgEl('g', { class: 'distance-bubble' });
+    var distanceBubbleRect = svgEl('rect', { class: 'distance-bubble-rect' });
+    var distanceBubbleText = svgEl('text', { class: 'distance-bubble-text', 'text-anchor': 'middle', y: 4 });
+    distanceBubbleGroup.appendChild(distanceBubbleRect);
+    distanceBubbleGroup.appendChild(distanceBubbleText);
+    gNodes.appendChild(distanceBubbleGroup);
+
+    var bubbleNode = null; // which node's distance the shared bubble is currently attributed to, if any
+
+    function positionDistanceBubble() {
+      var n = NODES[bubbleNode];
+      var offsetX = NODE_R + 14;
+      var offsetY = -(NODE_R + 12);
+      distanceBubbleGroup.style.transform = 'translate(' + (n.x + offsetX) + 'px, ' + (n.y + offsetY) + 'px)';
+    }
+
+    function showDistanceBubble(node) {
+      bubbleNode = node;
+      var frame = frames[currentIndex];
+      var d = frame.dist[node];
+      var label = d === Infinity ? '∞' : String(d);
+      distanceBubbleText.textContent = label;
+
+      // Size the pill to fit whatever text it's showing (a lone digit vs.
+      // "∞" vs. a multi-digit sum from a larger custom scenario) instead
+      // of a fixed width that would either clip or look oversized.
+      var box = distanceBubbleText.getBBox();
+      var padX = 8, padY = 4;
+      var w = Math.max(box.width + padX * 2, 22);
+      var h = box.height + padY * 2;
+      distanceBubbleRect.setAttribute('x', -w / 2);
+      distanceBubbleRect.setAttribute('y', -h / 2);
+      distanceBubbleRect.setAttribute('width', w);
+      distanceBubbleRect.setAttribute('height', h);
+      distanceBubbleRect.setAttribute('rx', h / 2);
+      distanceBubbleRect.setAttribute('ry', h / 2);
+
+      positionDistanceBubble();
+      distanceBubbleGroup.classList.add('is-visible');
+    }
+
+    function hideDistanceBubble() {
+      bubbleNode = null;
+      distanceBubbleGroup.classList.remove('is-visible');
+    }
 
     // -------------------------------------------------------------
     // Draggable nodes - a tactile toy, not a real "move the node" feature.
@@ -796,6 +863,7 @@
         var mn = NODES[frame.processingNode];
         currentMarkerGroup.style.transform = 'translate(' + mn.x + 'px, ' + mn.y + 'px)';
       }
+      if (bubbleNode) positionDistanceBubble();
     }
 
     var springAnims = {}; // node -> requestAnimationFrame id, so re-grabbing mid-spring cancels it cleanly
