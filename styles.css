@@ -794,9 +794,11 @@ body {
 
 /* Flat by default - no border, no fill - so the row reads as a quiet
    strip of icons rather than a row of boxed buttons. A soft tinted
-   background only appears on hover and while a control is actively
-   pressed/toggled, which is enough to show state without adding weight
-   to the bar the rest of the time. */
+   background only appears on hover, which is enough to show it's
+   interactive without adding weight to the bar the rest of the time.
+   Deliberately NOT styled any differently for aria-pressed="true" (the
+   sidebar toggle) - it should look exactly like any other button whether
+   the sidebar is open or collapsed, just with the same plain hover. */
 .btn {
   font: inherit;
   font-size: 0.86rem;
@@ -812,17 +814,6 @@ body {
 }
 .btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text-primary); }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.btn[aria-pressed="true"] {
-  background: var(--surface-2);
-  color: var(--accent);
-}
-/* Needs to out-specificity the plain :hover rule above so a pressed
-   button (Play while playing, or an open drawer toggle) keeps reading as
-   active - not as a plain hover - when the pointer happens to be over it. */
-.btn[aria-pressed="true"]:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--accent);
-}
 
 /* Icon-only toolbar buttons: fixed square footprint, no label text - the
    glyph itself plus each button's title/aria-label communicates its
