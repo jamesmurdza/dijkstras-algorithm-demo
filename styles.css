@@ -680,11 +680,12 @@ body {
   align-items: center;
 }
 
-/* Fully custom track + thumb (both a fixed, literal black, not a theme
+/* Fully custom track + thumb (both a fixed, literal gray, not a theme
    token - the toolbar sits on the always-light --canvas background
    regardless of theme, same reasoning as the node circles' own fixed
-   stroke colors elsewhere in this file) - a plain black line with a
-   black circle riding on it, no separate "filled portion" color. */
+   stroke colors elsewhere in this file, e.g. the #555555 used for
+   .is-visited below) - a plain gray line with a gray circle riding on
+   it, no separate "filled portion" color. */
 .slider {
   -webkit-appearance: none;
   appearance: none;
@@ -696,12 +697,12 @@ body {
 }
 .slider::-webkit-slider-runnable-track {
   height: 2px;
-  background: #0b0b0b;
+  background: #757570;
   border-radius: 999px;
 }
 .slider::-moz-range-track {
   height: 2px;
-  background: #0b0b0b;
+  background: #757570;
   border-radius: 999px;
 }
 .slider::-webkit-slider-thumb {
@@ -710,7 +711,7 @@ body {
   height: 14px;
   margin-top: -6px; /* centers the 14px thumb on the 2px track */
   border-radius: 50%;
-  background: #0b0b0b;
+  background: #757570;
   cursor: pointer;
 }
 .slider::-moz-range-thumb {
@@ -718,13 +719,13 @@ body {
   height: 14px;
   border: none;
   border-radius: 50%;
-  background: #0b0b0b;
+  background: #757570;
   cursor: pointer;
 }
 .slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 .slider:focus-visible::-moz-range-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Small black crosslines marking every discrete step the thumb can land
+/* Small gray crosslines marking every discrete step the thumb can land
    on (one per algorithm frame - see app.js, which rebuilds these to
    match frame count on every scenario load). Inset by half the thumb
    width so the first/last ticks line up with where the thumb's CENTER
@@ -743,7 +744,7 @@ body {
   top: 0;
   width: 1px;
   height: 8px;
-  background: #0b0b0b;
+  background: #757570;
   transform: translateX(-50%);
 }
 
