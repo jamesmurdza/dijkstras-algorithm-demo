@@ -352,12 +352,18 @@
   var settings = {
     showVertexLabels: true,
     showEdgeWeights: true,
+    // Off by default, unlike the two above - a tooltip on every hover is
+    // more clutter than most people want running by default; opt-in for
+    // whoever wants the extra readout.
+    showDistanceTooltips: false,
   };
   var currentScenario = SCENARIOS[0]; // updated by the scenario picker below; read back by the settings checkboxes
   var elSettingVertexLabels = document.getElementById('setting-vertex-labels');
   var elSettingEdgeWeights = document.getElementById('setting-edge-weights');
+  var elSettingDistanceTooltips = document.getElementById('setting-distance-tooltips');
   elSettingVertexLabels.checked = settings.showVertexLabels;
   elSettingEdgeWeights.checked = settings.showEdgeWeights;
+  elSettingDistanceTooltips.checked = settings.showDistanceTooltips;
 
   elSettingVertexLabels.addEventListener('change', function () {
     settings.showVertexLabels = elSettingVertexLabels.checked;
@@ -365,6 +371,10 @@
   });
   elSettingEdgeWeights.addEventListener('change', function () {
     settings.showEdgeWeights = elSettingEdgeWeights.checked;
+    loadScenario(currentScenario, app.getCurrentIndex());
+  });
+  elSettingDistanceTooltips.addEventListener('change', function () {
+    settings.showDistanceTooltips = elSettingDistanceTooltips.checked;
     loadScenario(currentScenario, app.getCurrentIndex());
   });
 
@@ -679,8 +689,11 @@
       // render, and this bubble is a single shared element (see above) - so
       // only hide it when the node losing its highlight is the one it's
       // currently attributed to, or a later node's "show" in the same pass
-      // would get immediately clobbered by an earlier node's "hide".
-      if (on) {
+      // would get immediately clobbered by an earlier node's "hide". Off by
+      // default (settings.showDistanceTooltips) - toggling the setting
+      // reloads the scenario (see below), which re-runs this via
+      // resyncHoverHighlight() and picks up the new value immediately.
+      if (on && settings.showDistanceTooltips) {
         showDistanceBubble(node);
       } else if (bubbleNode === node) {
         hideDistanceBubble();
