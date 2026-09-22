@@ -10,17 +10,15 @@
  *     it's now just what loadScenario() does every time it runs.
  *   - a single `renderStep(index)` function (redefined fresh inside each
  *     loadScenario() call) that is the ONE place all UI pieces (graph,
- *     description, table, slider, buttons) are kept in sync from - Back
- *     / Next / Reset / the slider / Play all just compute the next index
- *     and call it, so there is no way for the controls to drift out of
- *     sync with each other.
+ *     table, slider, buttons) are kept in sync from - Back / Next / the
+ *     slider all just compute the next index and call it, so there is no
+ *     way for the controls to drift out of sync with each other.
  *   - the toolbar's buttons/slider/keyboard shortcuts are wired up ONCE,
  *     at the bottom of this file, calling into a small `app` object
- *     whose methods (next/back/reset/seek/playToggle/stopPlay) get
- *     reassigned by every loadScenario() call - that indirection is what
- *     lets the toolbar keep working across scenario switches without
- *     ever attaching a second, duplicate set of listeners to the same
- *     buttons.
+ *     whose methods (next/back/seek) get reassigned by every
+ *     loadScenario() call - that indirection is what lets the toolbar
+ *     keep working across scenario switches without ever attaching a
+ *     second, duplicate set of listeners to the same buttons.
  *
  * All algorithm state (distances, predecessors, visited set) comes from
  * dijkstra.js's computeFrames(); all path geometry comes from
@@ -252,10 +250,9 @@
   var tbody = document.getElementById('stats-tbody');
 
   var elSlider = document.getElementById('step-slider');
+  var sliderTicks = document.getElementById('slider-ticks');
   var btnBack = document.getElementById('btn-back');
   var btnNext = document.getElementById('btn-next');
-  var btnReset = document.getElementById('btn-reset');
-  var btnPlay = document.getElementById('btn-play');
   var scenarioSelect = document.getElementById('scenario-select');
 
   // The sidebar (table / settings / pseudocode / how-it-works) is docked
@@ -325,8 +322,7 @@
   // listeners only ever call through this object, never anything scoped
   // inside a specific loadScenario() run.
   var app = {
-    next: function () {}, back: function () {}, reset: function () {},
-    seek: function () {}, playToggle: function () {}, stopPlay: function () {},
+    next: function () {}, back: function () {}, seek: function () {},
   };
 
   // Last known real pointer position, tracked once here (scenario-
@@ -344,9 +340,7 @@
 
   btnNext.addEventListener('click', function () { app.next(); });
   btnBack.addEventListener('click', function () { app.back(); });
-  btnReset.addEventListener('click', function () { app.reset(); });
   elSlider.addEventListener('input', function () { app.seek(Number(elSlider.value)); });
-  btnPlay.addEventListener('click', function () { app.playToggle(); });
 
   document.addEventListener('keydown', function (e) {
     if (e.target && e.target.tagName === 'INPUT') return; // let the slider handle its own arrow keys
@@ -382,8 +376,6 @@
   // new scenario without needing to know scenarios exist at all.
   // ===============================================================
   function loadScenario(scenario, startIndex) {
-    app.stopPlay(); // halt the OUTGOING scenario's Play loop before tearing anything down
-
     setActiveScenario(scenario);
     var NODE_ORDER = scenario.nodeOrder;
     var START = scenario.startNode || 'S';
@@ -821,10 +813,8 @@
       var baseOffsetX = 0, baseOffsetY = 0; // NODES[node]'s offset from HOME when the drag started (0 unless grabbed mid-spring)
 
       g.addEventListener('pointerdown', function (e) {
-        // Only the primary button/touch/pen contact starts a drag - and
-        // ignore it entirely while the algorithm is auto-playing, so a
-        // stray drag can't fight the Play loop's own rendering.
-        if (e.button !== 0 || playTimer) return;
+        // Only the primary button/touch/pen contact starts a drag.
+        if (e.button !== 0) return;
         cancelSpring(node);
         dragging = true;
         startClientX = e.clientX;
@@ -905,20 +895,20 @@
     // -------------------------------------------------------------
     var frames = computeFrames(START);
     var currentIndex = 0;
-    var playTimer = null;
 
     elSlider.max = String(frames.length - 1);
 
-    function stopPlay() {
-      if (playTimer) {
-        clearInterval(playTimer);
-        playTimer = null;
-        btnPlay.textContent = '▶';
-        btnPlay.setAttribute('aria-pressed', 'false');
-        btnPlay.setAttribute('aria-label', 'Auto-play through the steps');
-        btnPlay.title = 'Auto-play through the steps';
-      }
-    }
+    // Tick marks: one small crossline per discrete step the slider can
+    // land on, so every notch is visible rather than just implied by the
+    // step attribute. Frame count varies per scenario, so these are
+    // rebuilt fresh on every load rather than being static markup.
+    sliderTicks.innerHTML = '';
+    frames.forEach(function (frame, i) {
+      var tick = document.createElement('span');
+      tick.className = 'slider-tick';
+      tick.style.left = (frames.length === 1 ? 0 : (i / (frames.length - 1)) * 100) + '%';
+      sliderTicks.appendChild(tick);
+    });
 
     // ---------------------------------------------------------------
     // The single render function every control funnels through.
@@ -937,7 +927,6 @@
 
       btnBack.disabled = currentIndex === 0;
       btnNext.disabled = currentIndex === frames.length - 1;
-      if (currentIndex === frames.length - 1) stopPlay();
 
       // --- colored subway paths, derived fresh from this frame -------
       // (collectEdgeUsage is the same routing.js helper buildAllPaths uses
@@ -1069,27 +1058,10 @@
     // so simply reassigning these methods is enough to make the toolbar
     // control THIS scenario from now on.
     // -------------------------------------------------------------
-    app.next = function () { stopPlay(); renderStep(currentIndex + 1); };
-    app.back = function () { stopPlay(); renderStep(currentIndex - 1); };
-    app.reset = function () { stopPlay(); renderStep(0); };
-    app.seek = function (index) { stopPlay(); renderStep(index); };
-    app.stopPlay = stopPlay;
+    app.next = function () { renderStep(currentIndex + 1); };
+    app.back = function () { renderStep(currentIndex - 1); };
+    app.seek = function (index) { renderStep(index); };
     app.getCurrentIndex = function () { return currentIndex; }; // read by the settings checkboxes, so toggling one can rebuild in place without losing the current step
-    app.playToggle = function () {
-      if (playTimer) {
-        stopPlay();
-        return;
-      }
-      if (currentIndex >= frames.length - 1) renderStep(0);
-      btnPlay.textContent = '⏸';
-      btnPlay.setAttribute('aria-pressed', 'true');
-      btnPlay.setAttribute('aria-label', 'Pause auto-play');
-      btnPlay.title = 'Pause auto-play';
-      playTimer = setInterval(function () {
-        if (currentIndex >= frames.length - 1) { stopPlay(); return; }
-        renderStep(currentIndex + 1);
-      }, 2200); // each step is now a full node visit with a longer description, so give it more time to read
-    };
 
     renderStep(typeof startIndex === 'number' ? startIndex : 0);
   }
