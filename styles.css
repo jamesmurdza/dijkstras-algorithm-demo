@@ -365,13 +365,13 @@ body {
 
 /* Hover distance readout - a small pill anchored to a node's own position
    (never the cursor) showing that node's current tentative distance. Same
-   single-shared-element/fade-and-glide pattern as .current-marker above,
-   just offset up-and-right instead of straight up so it doesn't collide
-   with that marker's spot directly above the node. */
+   single-shared-element pattern as .current-marker above (one element,
+   repositioned/relabeled rather than one per node), but no transition -
+   it snaps straight to wherever it's shown rather than fading/gliding,
+   so it never lags behind a fast-moving hover. */
 .distance-bubble {
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.45s ease, opacity 0.15s ease;
 }
 .distance-bubble.is-visible {
   opacity: 1;
@@ -388,10 +388,6 @@ body {
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .distance-bubble { transition: opacity 0.15s ease; }
 }
 
 /* ------------------------- sidebar (Table / Settings / Pseudocode / How it works) ------------------------- */
