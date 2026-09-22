@@ -272,9 +272,15 @@
   var sidebarPanels = Array.prototype.slice.call(document.querySelectorAll('.sidebar-panel'));
   var sidebarOpen = false;
   var activeSidebarTab = 'table';
+  var sidebarWidth = null; // px, only set once the user drags the resize handle - null means "use the CSS default"
 
   function updateSidebarUI() {
     sidebar.classList.toggle('is-collapsed', !sidebarOpen);
+    // The collapsed rail's 44px width is CSS-driven (.sidebar.is-collapsed);
+    // a leftover inline flex-basis from a resize would otherwise outrank
+    // it (inline styles always beat stylesheet rules), so this is cleared
+    // whenever collapsed and only reapplied once expanded again.
+    sidebar.style.flexBasis = (sidebarOpen && sidebarWidth) ? sidebarWidth + 'px' : '';
     btnToggleSidebar.setAttribute('aria-pressed', String(sidebarOpen));
     var toggleLabel = sidebarOpen ? 'Collapse the sidebar' : 'Expand the sidebar';
     btnToggleSidebar.title = toggleLabel;
@@ -299,6 +305,43 @@
     });
   });
   updateSidebarUI();
+
+  // -------------------------------------------------------------
+  // Drag-to-resize the sidebar's width, via the thin invisible hit
+  // target layered over its existing right border (see .sidebar-resize-
+  // handle in styles.css - no visible change to the border itself, only
+  // the cursor and this drag behavior are new). Only meaningful while
+  // expanded - the handle itself is hidden by CSS while collapsed.
+  // -------------------------------------------------------------
+  var sidebarResizeHandle = document.getElementById('sidebar-resize-handle');
+  var MIN_SIDEBAR_WIDTH = 240;
+  var MAX_SIDEBAR_WIDTH = 560;
+
+  sidebarResizeHandle.addEventListener('pointerdown', function (e) {
+    if (!sidebarOpen || e.button !== 0) return;
+    e.preventDefault();
+    var startX = e.clientX;
+    var startWidth = sidebar.getBoundingClientRect().width;
+    sidebarResizeHandle.setPointerCapture(e.pointerId);
+    // A live drag should track the cursor exactly, not ease toward it
+    // frame by frame - see .sidebar.is-resizing in styles.css.
+    sidebar.classList.add('is-resizing');
+
+    function onMove(ev) {
+      var next = startWidth + (ev.clientX - startX);
+      next = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, next));
+      sidebarWidth = next;
+      sidebar.style.flexBasis = next + 'px';
+    }
+    function onUp(ev) {
+      sidebar.classList.remove('is-resizing');
+      sidebarResizeHandle.releasePointerCapture(ev.pointerId);
+      sidebarResizeHandle.removeEventListener('pointermove', onMove);
+      sidebarResizeHandle.removeEventListener('pointerup', onUp);
+    }
+    sidebarResizeHandle.addEventListener('pointermove', onMove);
+    sidebarResizeHandle.addEventListener('pointerup', onUp);
+  });
 
   // -------------------------------------------------------------
   // Display settings: both on by default. Global (not per-scenario) -

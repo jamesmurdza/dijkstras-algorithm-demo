@@ -114,6 +114,13 @@ def dijkstra(nodes: list[Node], start: Node) -&gt; dict[Node, float]:
               predecessor back to the start gives its shortest path.</p>
           </div>
         </div>
+
+        <!-- Drag-to-resize the sidebar's width. Purely a mouse/touch
+             affordance layered over the existing right border - see
+             app.js for the drag logic and styles.css for why this adds
+             no visible change of its own (no width/color, just a wider
+             invisible hit target centered on that same border). -->
+        <div id="sidebar-resize-handle" class="sidebar-resize-handle" aria-hidden="true"></div>
       </aside>
 
       <div class="canvas-area" aria-label="Graph visualization">

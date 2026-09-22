@@ -337,7 +337,14 @@ body {
 /* ------------------------- sidebar (Table / Settings / Pseudocode / How it works) ------------------------- */
 
 .sidebar {
+  position: relative; /* anchors .sidebar-resize-handle below */
   flex: 0 0 360px;
+  /* Flex items default to min-width: auto, which refuses to shrink below
+     their CONTENT's own min-content size (here, mostly the table/
+     pseudocode content in .sidebar-content) - without this override that
+     silently fights the resize handle's own MIN_SIDEBAR_WIDTH clamp
+     (app.js), stopping it well short of that intended floor. */
+  min-width: 0;
   max-width: 40vw;
   display: flex;
   flex-direction: column;
@@ -345,6 +352,33 @@ body {
   border-right: 1px solid var(--border);
   overflow: hidden;
   transition: flex-basis 0.2s ease, max-width 0.2s ease;
+}
+/* Switched off for the duration of an actual resize drag (see app.js) -
+   a live drag should track the cursor exactly, not lag behind it easing
+   toward wherever the cursor was a moment ago; the eased transition is
+   only for the collapse/expand toggle's own discrete jump. */
+.sidebar.is-resizing {
+  transition: none;
+}
+
+/* Drag-to-resize hit target, layered directly over the existing 1px
+   border-right above rather than drawn as its own visible element - no
+   width/color/hover state of its own, so the border looks exactly the
+   same as it always did; only the cursor and the drag behavior (see
+   app.js) are new. Entirely inside the sidebar's own box (not
+   overhanging past its right edge) since .sidebar clips overflow. */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.sidebar.is-collapsed .sidebar-resize-handle {
+  display: none; /* nothing meaningful to resize once shrunk to the collapsed rail */
 }
 
 /* Collapsed = shrunk down to just its own header bar (title hidden,
