@@ -10,6 +10,10 @@
   <div class="app">
     <header class="app-header">
       <h1>Dijkstra's Algorithm</h1>
+      <label class="scenario-picker">
+        <span class="scenario-picker__label">Scenario</span>
+        <select id="scenario-select" aria-label="Graph scenario"></select>
+      </label>
     </header>
 
     <!-- Main row: the graph canvas plus an optional sidebar. The sidebar
@@ -72,6 +76,7 @@
   </div>
 
   <script src="dijkstra.js"></script>
+  <script src="scenarios.js"></script>
   <script src="routing.js"></script>
   <script src="app.js"></script>
 </body>

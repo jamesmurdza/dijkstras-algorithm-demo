@@ -87,6 +87,18 @@ function buildAdjacency() {
 
 var ADJACENCY = buildAdjacency();
 
+// Swaps in a different scenario's graph (see scenarios.js) as the active
+// NODES/EDGES/START_NODE/ADJACENCY - the same globals every function in
+// this file and in routing.js already reads from, so nothing about the
+// algorithm or the rendering logic needs to know scenarios exist. Used
+// by app.js's loadScenario() whenever the scenario dropdown changes.
+function setActiveScenario(scenario) {
+  NODES = scenario.nodes;
+  EDGES = scenario.edges;
+  START_NODE = scenario.startNode || 'S';
+  ADJACENCY = buildAdjacency();
+}
+
 function edgeKey(a, b) {
   return [a, b].sort().join('-');
 }
@@ -277,5 +289,6 @@ if (typeof module !== 'undefined' && module.exports) {
     pathTo: pathTo,
     formatPath: formatPath,
     computeFrames: computeFrames,
+    setActiveScenario: setActiveScenario,
   };
 }

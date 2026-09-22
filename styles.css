@@ -91,12 +91,57 @@ body {
 
 .app-header {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 16px;
   background: var(--canvas);
 }
 .app-header h1 {
   font-size: clamp(1rem, 2vw, 1.25rem);
   margin: 0;
+}
+
+/* Scenario picker - top right of the header. A plain, flat <select> (no
+   boxed panel/border-heavy styling) so it reads as part of the same
+   quiet chrome as the toolbar's icon buttons rather than a separate
+   widget bolted on. */
+.scenario-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.scenario-picker__label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.scenario-picker select {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.scenario-picker select:hover {
+  background: var(--border);
+}
+.scenario-picker select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .scenario-picker__label { display: none; }
+  .app-header { flex-wrap: wrap; row-gap: 6px; }
 }
 
 /* ------------------------- main row (canvas + sidebar) ------------------------- */
