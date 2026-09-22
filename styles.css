@@ -234,7 +234,7 @@ body {
   stroke-width: 1.5;
   transition: filter 0.15s ease, stroke 0.3s ease;
 }
-.node.is-visited .node-circle { stroke: #0b0b0b; } /* fixed, not var(--text-primary) - the canvas stays light-themed always, same as the paper-white default above */
+.node.is-visited .node-circle { stroke: #3a3a38; } /* dark gray, not black - fixed literal (not var(--text-primary)) since the canvas stays light-themed always, same as the paper-white default above */
 .node.is-highlighted .node-circle { filter: brightness(1.2); }
 .node-label {
   font-size: 11px;
