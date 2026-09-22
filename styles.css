@@ -223,15 +223,18 @@ body {
 .route-path.is-highlighted { filter: brightness(1.35); }
 
 /* Nodes always stay fully opaque too, regardless of visited state.
-   Visited nodes keep the same thin border as every other node (the
-   default paper-colored stroke below) - no extra ring is added just for
-   having been visited. Lightens the same way its own route does (see
-   .route-path above) when either is hovered. */
+   The border starts as the same paper color as the canvas (so it reads
+   as a thin gap around the node rather than an outline) and switches to
+   ink black once the algorithm finalizes that node (frame.visited),
+   marking it as done at a glance without needing to read the table.
+   Lightens the same way its own route does (see .route-path above) when
+   either is hovered. */
 .node-circle {
   stroke: #fcfcfb;
   stroke-width: 1.5;
-  transition: filter 0.15s ease;
+  transition: filter 0.15s ease, stroke 0.3s ease;
 }
+.node.is-visited .node-circle { stroke: #0b0b0b; } /* fixed, not var(--text-primary) - the canvas stays light-themed always, same as the paper-white default above */
 .node.is-highlighted .node-circle { filter: brightness(1.2); }
 .node-label {
   font-size: 11px;
