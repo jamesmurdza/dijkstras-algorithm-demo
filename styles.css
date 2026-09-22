@@ -232,10 +232,10 @@ body {
   transition: stroke-width 0.2s ease;
 }
 /* stroke-width is set per-element in app.js (inline style, so it wins
-   over this rule regardless of specificity) - a fixed 3px when edge
-   weights are shown as labels, or scaled to each edge's own weight when
-   they're not (see settings.showEdgeWeights / weightToWidth() in
-   app.js) - the whole reason that setting exists. */
+   over this rule regardless of specificity) - a fixed 3px in 'labels'/
+   'none' mode, or scaled to each edge's own weight in 'thickness' mode
+   (see settings.edgeWeightStyle / weightToWidth() in app.js) - the whole
+   reason that setting exists. */
 .edge-base.is-used {
   opacity: 0;
 }
@@ -666,6 +666,23 @@ body {
   width: 17px;
   height: 17px;
   accent-color: var(--accent);
+  cursor: pointer;
+}
+/* The edge-weights row is a 3-way choice (Labels/Thickness/None), not an
+   on/off toggle, so it gets a <select> instead of a checkbox - pushed to
+   the row's far end rather than sitting left of its label like a
+   checkbox does. */
+.settings-row--select {
+  justify-content: space-between;
+}
+.settings-row--select select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
   cursor: pointer;
 }
 .settings-note {

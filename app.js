@@ -344,14 +344,17 @@
   });
 
   // -------------------------------------------------------------
-  // Display settings: both on by default. Global (not per-scenario) -
-  // toggling one rebuilds the CURRENTLY active scenario's graph in place
-  // (see the checkbox listeners below), preserving whatever step the
-  // algorithm run is currently on rather than resetting to the start.
+  // Display settings. Global (not per-scenario) - changing one rebuilds
+  // the CURRENTLY active scenario's graph in place (see the listeners
+  // below), preserving whatever step the algorithm run is currently on
+  // rather than resetting to the start.
   // -------------------------------------------------------------
   var settings = {
     showVertexLabels: true,
-    showEdgeWeights: true,
+    // 'labels' (weight number on each edge), 'thickness' (edge width
+    // scales to its weight, no number), or 'none' (neither - a plain
+    // fixed-width line, same layout as 'labels' minus the number).
+    edgeWeightStyle: 'labels',
     // Off by default, unlike the two above - a tooltip on every hover is
     // more clutter than most people want running by default; opt-in for
     // whoever wants the extra readout.
@@ -359,18 +362,18 @@
   };
   var currentScenario = SCENARIOS[0]; // updated by the scenario picker below; read back by the settings checkboxes
   var elSettingVertexLabels = document.getElementById('setting-vertex-labels');
-  var elSettingEdgeWeights = document.getElementById('setting-edge-weights');
+  var elSettingEdgeWeightStyle = document.getElementById('setting-edge-weight-style');
   var elSettingDistanceTooltips = document.getElementById('setting-distance-tooltips');
   elSettingVertexLabels.checked = settings.showVertexLabels;
-  elSettingEdgeWeights.checked = settings.showEdgeWeights;
+  elSettingEdgeWeightStyle.value = settings.edgeWeightStyle;
   elSettingDistanceTooltips.checked = settings.showDistanceTooltips;
 
   elSettingVertexLabels.addEventListener('change', function () {
     settings.showVertexLabels = elSettingVertexLabels.checked;
     loadScenario(currentScenario, app.getCurrentIndex());
   });
-  elSettingEdgeWeights.addEventListener('change', function () {
-    settings.showEdgeWeights = elSettingEdgeWeights.checked;
+  elSettingEdgeWeightStyle.addEventListener('change', function () {
+    settings.edgeWeightStyle = elSettingEdgeWeightStyle.value;
     loadScenario(currentScenario, app.getCurrentIndex());
   });
   elSettingDistanceTooltips.addEventListener('change', function () {
@@ -448,12 +451,12 @@
     var CHEVRON_TOP_Y = -(NODE_R + 18);
     var CHEVRON_TIP_Y = -(NODE_R + 8);
 
-    // Weight-to-stroke-width scale for this build, used only when
-    // settings.showEdgeWeights is off (see weightToWidth below) - a
-    // straight linear map from THIS scenario's own actual min/max edge
-    // weight to a fixed pixel range, so "thickest line on screen" always
-    // means "this scenario's heaviest edge" regardless of what the raw
-    // weight numbers happen to be.
+    // Weight-to-stroke-width scale for this build, used only in
+    // 'thickness' mode (see weightToWidth below) - a straight linear map
+    // from THIS scenario's own actual min/max edge weight to a fixed
+    // pixel range, so "thickest line on screen" always means "this
+    // scenario's heaviest edge" regardless of what the raw weight numbers
+    // happen to be.
     var MIN_STROKE = 1.5, MAX_STROKE = 9;
     var edgeWeightValues = EDGES.map(function (e) { return e[2]; });
     var minEdgeWeight = Math.min.apply(null, edgeWeightValues);
@@ -463,6 +466,13 @@
       var t = (w - minEdgeWeight) / (maxEdgeWeight - minEdgeWeight);
       return Math.round((MIN_STROKE + t * (MAX_STROKE - MIN_STROKE)) * 10) / 10;
     }
+    // Only 'thickness' mode needs per-hop segments/scaled widths; both
+    // 'labels' and 'none' render a route as one fixed-width path (they
+    // differ only in whether a weight number gets drawn on each edge -
+    // see the labelGroup block below), so this single flag still covers
+    // the same "single path vs. per-hop segments" fork everything below
+    // was already built around.
+    var showWeights = settings.edgeWeightStyle !== 'thickness';
 
     // The graph's real, permanent layout - captured once per scenario,
     // before anything ever touches NODES[node].x/y, so dragging (a
@@ -557,7 +567,7 @@
       });
       // Inline style, not the attribute - it needs to win over the
       // .edge-base rule regardless of specificity (see styles.css).
-      lineEl.style.strokeWidth = (settings.showEdgeWeights ? 3 : weightToWidth(w)) + 'px';
+      lineEl.style.strokeWidth = (showWeights ? 3 : weightToWidth(w)) + 'px';
       gEdgesBase.appendChild(lineEl);
       edgeEls[edgeKey(edge[0], edge[1])] = lineEl;
 
@@ -567,11 +577,11 @@
       // behind it for legibility over crossing/bundled lines. Radius is
       // sized to comfortably fit the widest weight in this graph (two
       // digits, e.g. "20") without the text touching the edge of the circle.
-      // Only built at all when settings.showEdgeWeights is on - when it's
-      // off, the edge's own thickness (set above) carries the weight
-      // instead, so there's nothing to label.
+      // Only built at all in 'labels' mode - 'thickness' carries the
+      // weight via the edge's own width (set above) instead, and 'none'
+      // shows nothing for it at all, so neither has anything to label.
       var labelGroup = null;
-      if (settings.showEdgeWeights) {
+      if (settings.edgeWeightStyle === 'labels') {
         var labelPt = findLabelPoint(a, b);
         labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
         labelGroup.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 9.5 }));
@@ -584,24 +594,23 @@
       edgeGeom.push({ from: edge[0], to: edge[1], lineEl: lineEl, labelEl: labelGroup });
     });
 
-    // One "route group" <g> per destination for its colored route. When
-    // settings.showEdgeWeights is on, it holds exactly one <path> - the
-    // whole route as a single smooth shape (routing.js's
+    // One "route group" <g> per destination for its colored route. In
+    // 'labels'/'none' mode (showWeights), it holds exactly one <path> -
+    // the whole route as a single smooth shape (routing.js's
     // buildDestinationPathD) - so the morph/grow animations further
     // below (which need one element to resample/measure) keep working
-    // exactly as before. When it's off, it instead holds one <path> PER
-    // HOP (routing.js's buildDestinationHopSegments), each independently
-    // stroke-width'd to its own edge's weight, since a single <path>
-    // can't vary its own stroke-width along its length - see
-    // syncRouteSegmentEls below, which keeps that per-hop element count
-    // in sync every render (hop count changes whenever the shortest path
-    // itself does). Segments mode deliberately skips the morph/draw-on
-    // animations - a plain opacity fade (the existing .route-path CSS
-    // transition) carries a first appearance instead, and shape changes
-    // just snap - animating a set of independently-widthed segments
-    // smoothly would need much more machinery for a secondary display
-    // mode.
-    var showWeights = settings.showEdgeWeights;
+    // exactly as before. In 'thickness' mode, it instead holds one <path>
+    // PER HOP (routing.js's buildDestinationHopSegments), each
+    // independently stroke-width'd to its own edge's weight, since a
+    // single <path> can't vary its own stroke-width along its length -
+    // see syncRouteSegmentEls below, which keeps that per-hop element
+    // count in sync every render (hop count changes whenever the
+    // shortest path itself does). Segments mode deliberately skips the
+    // morph/draw-on animations - a plain opacity fade (the existing
+    // .route-path CSS transition) carries a first appearance instead, and
+    // shape changes just snap - animating a set of independently-widthed
+    // segments smoothly would need much more machinery for a secondary
+    // display mode.
     var routeEls = {};
     NODE_ORDER.forEach(function (node) {
       if (node === START) return;
@@ -841,7 +850,7 @@
         edge.lineEl.setAttribute('y1', a.y);
         edge.lineEl.setAttribute('x2', b.x);
         edge.lineEl.setAttribute('y2', b.y);
-        if (edge.labelEl) { // null when settings.showEdgeWeights is off - nothing to reposition
+        if (edge.labelEl) { // null outside 'labels' mode - nothing to reposition
           var labelPt = findLabelPoint(a, b);
           edge.labelEl.setAttribute('transform', 'translate(' + labelPt.x + ',' + labelPt.y + ')');
         }

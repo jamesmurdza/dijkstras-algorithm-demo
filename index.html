@@ -108,19 +108,23 @@
             <input id="setting-vertex-labels" type="checkbox" checked />
             <span>Show vertex labels</span>
           </label>
-          <label class="settings-row">
-            <input id="setting-edge-weights" type="checkbox" checked />
-            <span>Show edge weights</span>
+          <label class="settings-row settings-row--select">
+            <span>Edge weights</span>
+            <select id="setting-edge-weight-style">
+              <option value="labels">Labels</option>
+              <option value="thickness">Thickness</option>
+              <option value="none">None</option>
+            </select>
           </label>
           <label class="settings-row">
             <input id="setting-distance-tooltips" type="checkbox" />
             <span>Show tentative distance tooltips</span>
           </label>
-          <p class="settings-note">Vertex labels and edge weights are on by
-            default; with edge weights off, each edge's thickness stands in
-            for its weight instead. Distance tooltips - a small readout of a
-            node's current tentative distance when you hover it or its route -
-            are off by default.</p>
+          <p class="settings-note">Vertex labels are on by default. Edge
+            weights default to Labels; Thickness scales each edge's own
+            width to its weight instead, and None shows neither. Distance
+            tooltips - a small readout of a node's current tentative
+            distance when you hover it or its route - are off by default.</p>
         </div>
       </div>
 
