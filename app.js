@@ -240,15 +240,9 @@
     return { x: dx * scale, y: dy * scale };
   }
 
-  var FRAME_BADGE_LABEL = {
-    init: 'Init',
-    visit: 'Visit',
-    done: 'Done',
-  };
-
   // -------------------------------------------------------------
   // Static DOM refs + controls that persist across scenario switches.
-  // The toolbar/drawer/scenario-picker elements themselves are never
+  // The toolbar/sidebar/scenario-picker elements themselves are never
   // rebuilt - only the graph (inside #graph-container) and the stats
   // table body are. Every control below calls into `app.*`, which
   // loadScenario() reassigns on every switch - that indirection is what
@@ -257,9 +251,6 @@
   var graphContainer = document.getElementById('graph-container');
   var tbody = document.getElementById('stats-tbody');
 
-  var elBadge = document.getElementById('frame-badge');
-  var elCounter = document.getElementById('step-counter');
-  var elDescription = document.getElementById('step-description');
   var elSlider = document.getElementById('step-slider');
   var btnBack = document.getElementById('btn-back');
   var btnNext = document.getElementById('btn-next');
@@ -267,41 +258,43 @@
   var btnPlay = document.getElementById('btn-play');
   var scenarioSelect = document.getElementById('scenario-select');
 
-  // The step-description, stats-table, and display-settings panels all
-  // live in the same sidebar docked next to the canvas, one at a time.
-  // It's closed by default (canvas-only UI); any toggle button opens it
-  // showing that panel, and clicking the already-active toggle closes it
-  // again. This is independent of which scenario is loaded, so it's set
-  // up once here rather than inside loadScenario().
-  var drawer = document.getElementById('drawer');
-  var drawerStepPanel = document.getElementById('drawer-step');
-  var drawerTablePanel = document.getElementById('drawer-table');
-  var drawerSettingsPanel = document.getElementById('drawer-settings');
-  var btnToggleStep = document.getElementById('btn-toggle-step');
-  var btnToggleTable = document.getElementById('btn-toggle-table');
-  var btnToggleSettings = document.getElementById('btn-toggle-settings');
-  var drawerMode = null; // null | 'step' | 'table' | 'settings'
+  // The sidebar (table / settings / pseudocode / how-it-works) is docked
+  // to the LEFT of the canvas. It's closed by default (canvas-only UI);
+  // the toolbar's single toggle opens/closes it, and its own tab strip
+  // (independent of that toggle) switches which one of the four panels
+  // is showing while it's open. Both are independent of which scenario
+  // is loaded, so this is set up once here rather than inside
+  // loadScenario().
+  var sidebar = document.getElementById('sidebar');
+  var btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+  var sidebarTabButtons = Array.prototype.slice.call(document.querySelectorAll('.sidebar-tab'));
+  var sidebarPanels = Array.prototype.slice.call(document.querySelectorAll('.sidebar-panel'));
+  var sidebarOpen = false;
+  var activeSidebarTab = 'table';
 
-  function setDrawerMode(mode) {
-    drawerMode = mode;
-    drawer.hidden = mode === null;
-    drawerStepPanel.classList.toggle('is-active', mode === 'step');
-    drawerTablePanel.classList.toggle('is-active', mode === 'table');
-    drawerSettingsPanel.classList.toggle('is-active', mode === 'settings');
-    btnToggleStep.setAttribute('aria-pressed', String(mode === 'step'));
-    btnToggleTable.setAttribute('aria-pressed', String(mode === 'table'));
-    btnToggleSettings.setAttribute('aria-pressed', String(mode === 'settings'));
+  function updateSidebarUI() {
+    sidebar.hidden = !sidebarOpen;
+    btnToggleSidebar.setAttribute('aria-pressed', String(sidebarOpen));
+    sidebarTabButtons.forEach(function (btn) {
+      var tab = btn.id.replace('tab-btn-', '');
+      btn.setAttribute('aria-selected', String(tab === activeSidebarTab));
+    });
+    sidebarPanels.forEach(function (panel) {
+      panel.classList.toggle('is-active', panel.id === 'tab-' + activeSidebarTab);
+    });
   }
 
-  btnToggleStep.addEventListener('click', function () {
-    setDrawerMode(drawerMode === 'step' ? null : 'step');
+  btnToggleSidebar.addEventListener('click', function () {
+    sidebarOpen = !sidebarOpen;
+    updateSidebarUI();
   });
-  btnToggleTable.addEventListener('click', function () {
-    setDrawerMode(drawerMode === 'table' ? null : 'table');
+  sidebarTabButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activeSidebarTab = btn.id.replace('tab-btn-', '');
+      updateSidebarUI();
+    });
   });
-  btnToggleSettings.addEventListener('click', function () {
-    setDrawerMode(drawerMode === 'settings' ? null : 'settings');
-  });
+  updateSidebarUI();
 
   // -------------------------------------------------------------
   // Display settings: both on by default. Global (not per-scenario) -
@@ -930,11 +923,7 @@
       currentIndex = Math.max(0, Math.min(frames.length - 1, index));
       var frame = frames[currentIndex];
 
-      // --- description / badge / counter / slider -------------------
-      elBadge.textContent = FRAME_BADGE_LABEL[frame.type] || frame.type;
-      elBadge.className = 'frame-badge frame-badge--' + frame.type;
-      elCounter.textContent = 'Step ' + (currentIndex + 1) + ' / ' + frames.length;
-      elDescription.textContent = frame.description;
+      // --- slider -----------------------------------------------------
       elSlider.value = String(currentIndex);
 
       btnBack.disabled = currentIndex === 0;
@@ -1091,6 +1080,5 @@
     renderStep(typeof startIndex === 'number' ? startIndex : 0);
   }
 
-  setDrawerMode(null);
   loadScenario(SCENARIOS[0]);
 })();

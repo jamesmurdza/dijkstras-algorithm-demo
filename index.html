@@ -15,66 +15,113 @@
       </div>
     </header>
 
-    <!-- Main row: the graph canvas plus an optional sidebar. The sidebar
-         (step/table) is docked in normal flex flow, not an overlay - the
-         canvas shrinks to make room for it - and is only in the DOM's
-         visible flow when a toolbar toggle opens it, so the canvas stays
-         the whole UI by default. -->
+    <!-- Main row: an optional collapsible sidebar (docked LEFT) plus the
+         graph canvas. The sidebar is in normal flex flow, not an overlay
+         - the canvas shrinks to make room for it - and is only in the
+         DOM's visible flow when the toolbar toggle opens it, so the
+         canvas stays the whole UI by default. Its four tabs (switched
+         with the strip at its own top, independent of the toolbar
+         toggle that opens/closes the whole sidebar) are: the live
+         distances table, display settings, the algorithm's pseudocode,
+         and a plain-English walkthrough of how it works. -->
     <main class="main-area">
+      <aside id="sidebar" class="sidebar" aria-label="Details" hidden>
+        <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
+          <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table">Table</button>
+          <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
+          <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode">Pseudocode</button>
+          <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description">How it works</button>
+        </div>
+
+        <div class="sidebar-content">
+          <div id="tab-table" class="sidebar-panel is-active" role="tabpanel">
+            <div class="table-wrap">
+              <table class="stats-table" id="stats-table">
+                <caption>Tentative distances &amp; best-known routes from S</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Node</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Distance</th>
+                    <th scope="col">Best-known route</th>
+                  </tr>
+                </thead>
+                <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="tab-settings" class="sidebar-panel" role="tabpanel">
+            <p class="settings-heading">Display settings</p>
+            <label class="settings-row">
+              <input id="setting-vertex-labels" type="checkbox" checked />
+              <span>Show vertex labels</span>
+            </label>
+            <label class="settings-row">
+              <input id="setting-edge-weights" type="checkbox" checked />
+              <span>Show edge weights</span>
+            </label>
+            <p class="settings-note">Both on by default. With edge weights off, each
+              edge's thickness stands in for its weight instead.</p>
+          </div>
+
+          <div id="tab-pseudocode" class="sidebar-panel" role="tabpanel">
+            <pre class="pseudocode"><code># Find the shortest (weighted) paths from start to all other nodes
+def dijkstra(nodes: list[Node], start: Node) -&gt; dict[Node, float]:
+    # All nodes, and our distance estimates
+    distances = {node: float("inf") for node in nodes}
+    distances[start] = 0
+    # The nodes we've visited already
+    unvisited = set(nodes)
+
+    while unvisited:
+        # u is the node we're visiting
+        u = min(unvisited, key=lambda node: distances[node])
+        unvisited.remove(u)
+
+        # v is each neighbor of u
+        for v in u.neighbors:
+            if v in unvisited:
+                # Relax the edge between u and v
+                new_distance = distances[u] + weight(u, v)
+                distances[v] = min(distances[v], new_distance)
+
+    # All distances are now correct
+    return distances</code></pre>
+          </div>
+
+          <div id="tab-description" class="sidebar-panel" role="tabpanel">
+            <p>Dijkstra's algorithm finds the shortest distance from a single
+              start node to every other node in a weighted graph.</p>
+            <p>It starts by assuming every node is unreachable (distance
+              infinity) except the start node, which is distance zero.
+              Every node begins unvisited.</p>
+            <p>Then it repeats one step until every node has been visited:
+              among the unvisited nodes, pick the one with the smallest
+              known distance, and mark it visited. That distance is now
+              final - it can never improve later.</p>
+            <p>For every neighbor of the node just visited, check whether
+              going through it gives a shorter path than what that
+              neighbor currently has on record ("relaxing" the edge). If
+              so, update the neighbor's distance and remember this node
+              as the way to reach it.</p>
+            <p>Once every node has been visited, every distance is
+              guaranteed correct, and retracing each node's recorded
+              predecessor back to the start gives its shortest path.</p>
+          </div>
+        </div>
+      </aside>
+
       <div class="canvas-area" aria-label="Graph visualization">
         <div id="graph-container" class="graph-container">
           <!-- SVG graph is built and updated entirely by app.js -->
         </div>
       </div>
-
-      <!-- Sidebar: shows EITHER the current-step panel OR the status
-           table, toggled by the two buttons on the right of the toolbar.
-           Hidden by default. -->
-      <aside id="drawer" class="drawer" aria-label="Details" hidden>
-        <div id="drawer-step" class="drawer-panel">
-          <div class="step-box__top">
-            <span id="frame-badge" class="frame-badge">Init</span>
-            <span id="step-counter" class="step-counter">Step 1 / 1</span>
-          </div>
-          <p id="step-description" class="step-description">Loading…</p>
-        </div>
-
-        <div id="drawer-table" class="drawer-panel">
-          <div class="table-wrap">
-            <table class="stats-table" id="stats-table">
-              <caption>Tentative distances &amp; best-known routes from S</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Node</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Distance</th>
-                  <th scope="col">Best-known route</th>
-                </tr>
-              </thead>
-              <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div id="drawer-settings" class="drawer-panel">
-          <p class="settings-heading">Display settings</p>
-          <label class="settings-row">
-            <input id="setting-vertex-labels" type="checkbox" checked />
-            <span>Show vertex labels</span>
-          </label>
-          <label class="settings-row">
-            <input id="setting-edge-weights" type="checkbox" checked />
-            <span>Show edge weights</span>
-          </label>
-          <p class="settings-note">Both on by default. With edge weights off, each
-            edge's thickness stands in for its weight instead.</p>
-        </div>
-      </aside>
     </main>
 
     <!-- Toolbar: the only other piece of UI besides the canvas. Reset /
-         Back / a long slider / Next / Play on the left, the two drawer
-         toggles on the right. -->
+         Back / a long slider / Next / Play on the left, the sidebar
+         toggle on the right. -->
     <footer class="toolbar" role="group" aria-label="Step controls">
       <button id="btn-reset" class="btn btn--icon" type="button" title="Reset to the beginning" aria-label="Reset to the beginning">⟲</button>
       <button id="btn-back" class="btn btn--icon" type="button" title="Previous step" aria-label="Previous step">←</button>
@@ -83,9 +130,7 @@
       <button id="btn-next" class="btn btn--icon" type="button" title="Next step" aria-label="Next step">→</button>
       <button id="btn-play" class="btn btn--icon" type="button" title="Auto-play through the steps" aria-label="Auto-play through the steps">▶</button>
       <span class="toolbar-sep" aria-hidden="true"></span>
-      <button id="btn-toggle-step" class="btn btn--icon btn--toggle" type="button" aria-pressed="false" title="Show the current-step panel" aria-label="Show the current-step panel">ℹ</button>
-      <button id="btn-toggle-table" class="btn btn--icon btn--toggle" type="button" aria-pressed="false" title="Show the distances table" aria-label="Show the distances table">▦</button>
-      <button id="btn-toggle-settings" class="btn btn--icon btn--toggle" type="button" aria-pressed="false" title="Show display settings" aria-label="Show display settings">⚙</button>
+      <button id="btn-toggle-sidebar" class="btn btn--icon btn--toggle" type="button" aria-pressed="false" title="Show the sidebar" aria-label="Show the sidebar">◧</button>
     </footer>
   </div>
 
