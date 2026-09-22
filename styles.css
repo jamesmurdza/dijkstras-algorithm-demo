@@ -733,13 +733,16 @@ body {
 
 /* Small gray crosslines marking every discrete step the thumb can land
    on (one per algorithm frame - see app.js, which rebuilds these to
-   match frame count on every scenario load). Inset by half the thumb
-   width so the first/last ticks line up with where the thumb's CENTER
-   actually reaches, not the edges of the input's own box. */
+   match frame count on every scenario load). Flush with the edges (0,
+   not inset) so the first/last crosslines land exactly at the very
+   ends of the track line - not stopping short of it - even though that
+   means they sit slightly outside the thumb's own center-of-travel
+   range at min/max (a 7px difference not worth the visual gap it'd
+   otherwise leave at each end). */
 .slider-ticks {
   position: absolute;
-  left: 7px;
-  right: 7px;
+  left: 0;
+  right: 0;
   top: 50%;
   height: 8px;
   transform: translateY(-50%);
