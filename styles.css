@@ -476,31 +476,39 @@ body {
 
 /* Tab strip stays fixed at the sidebar's own top; only .sidebar-content
    below it scrolls, so the tabs are always reachable regardless of how
-   long the active panel's content runs (the pseudocode block especially). */
+   long the active panel's content runs (the pseudocode block especially).
+   Styled as a segmented control (one rounded pill-shaped track, the
+   selected segment raised on its own matching-radius chip) rather than an
+   underlined tab strip - reads more clearly as "pick one of four views",
+   the same idiom iOS/macOS use for this exact kind of view switcher. */
 .sidebar-tabs {
   display: flex;
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
+  gap: 2px;
+  margin: 10px 12px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-2);
 }
 .sidebar-tab {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   font: inherit;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
-  padding: 11px 6px;
+  padding: 7px 6px;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 7px;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
-.sidebar-tab:hover { background: var(--surface-2); color: var(--text-primary); }
+.sidebar-tab:hover { color: var(--text-primary); }
 .sidebar-tab[aria-selected="true"] {
+  background: var(--surface-1);
   color: var(--accent);
-  border-bottom-color: var(--accent);
+  box-shadow: 0 1px 3px rgba(11, 11, 11, 0.16);
 }
 
 .sidebar-content {
