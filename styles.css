@@ -111,24 +111,44 @@ body {
    widget bolted on. No visible text label - the select's own current
    value (a scenario name) already reads as self-explanatory, and
    aria-label="Graph scenario" on the <select> covers screen readers. */
+/* Just the current scenario's name + a small dropdown arrow - no
+   box/border/fill "porcelain" around it at rest. The actual list of
+   scenarios is still a native <select> popup (unstyled - browsers don't
+   let you restyle that part), it only ever appears once you click it;
+   what's being stripped down here is purely the CLOSED control's own
+   chrome. */
 .scenario-picker {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
+  position: relative;
+}
+.scenario-picker::after {
+  content: '▾';
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  pointer-events: none; /* clicks pass through to the <select> underneath */
 }
 .scenario-picker select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   font: inherit;
   font-size: 0.86rem;
   font-weight: 600;
   color: var(--text-primary);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 20px 7px 7px;
   cursor: pointer;
 }
 .scenario-picker select:hover {
-  background: var(--border);
+  background: var(--surface-2);
 }
 .scenario-picker select:focus-visible {
   outline: 2px solid var(--accent);
