@@ -180,10 +180,15 @@ body {
    just de-dashing it) avoids the peek-through regardless of lane count. */
 .edge-base {
   stroke: var(--edge-gray);
-  stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 6 5;
+  transition: stroke-width 0.2s ease;
 }
+/* stroke-width is set per-element in app.js (inline style, so it wins
+   over this rule regardless of specificity) - a fixed 3px when edge
+   weights are shown as labels, or scaled to each edge's own weight when
+   they're not (see settings.showEdgeWeights / weightToWidth() in
+   app.js) - the whole reason that setting exists. */
 .edge-base.is-used {
   opacity: 0;
 }
@@ -211,13 +216,14 @@ body {
    hand - so a single line is easy to pick out of a busy parallel-lane
    bundle. */
 .route-path {
-  stroke-width: 4;
+  /* stroke-width set per-element in app.js - see the .edge-base comment
+     above, same reasoning applies here (a fixed 4px, or weight-scaled). */
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
   opacity: 0;
   cursor: pointer;
-  transition: opacity 0.3s ease, filter 0.15s ease;
+  transition: opacity 0.3s ease, filter 0.15s ease, stroke-width 0.2s ease;
 }
 .route-path.is-visible { opacity: 1; }
 .route-path.is-highlighted { filter: brightness(1.35); }
@@ -393,6 +399,40 @@ body {
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
+}
+
+/* ------------------------- settings panel ------------------------- */
+
+.settings-heading {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.settings-row input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.settings-note {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 /* ------------------------- toolbar ------------------------- */

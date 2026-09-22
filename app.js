@@ -32,14 +32,20 @@
 (function () {
   'use strict';
 
-  var NODE_R = 12; // just big enough to fit a single bold letter
+  // Node circle radius: big enough to fit a single bold letter when the
+  // "show vertex labels" setting is on, or a smaller plain dot when it's
+  // off (see settings below) - NODE_R itself becomes a per-loadScenario()
+  // local (it depends on that setting), computed from whichever of these
+  // two is active.
+  var NODE_R_WITH_LABEL = 12;
+  var NODE_R_NO_LABEL = 7;
 
-  // Geometry (local to the marker's own position - see currentMarkerGroup
-  // below) for the small "currently visiting" marker floating above a
-  // node: a solid upside-down triangle pointing straight down at it.
-  var CHEVRON_HALF_W = 6.5; // half-width of the flat top edge
-  var CHEVRON_TOP_Y = -(NODE_R + 18); // y of the flat top edge
-  var CHEVRON_TIP_Y = -(NODE_R + 8); // y of the bottom point (closer to the node)
+  // Half-width of the flat top edge of the small "currently visiting"
+  // marker (see currentMarkerGroup below) - the rest of its geometry is
+  // NODE_R-relative, so it's computed alongside NODE_R inside
+  // loadScenario() too, since it needs to stay proportioned to whichever
+  // circle size is currently active.
+  var CHEVRON_HALF_W = 6.5;
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
   function svgEl(tag, attrs) {
@@ -261,26 +267,30 @@
   var btnPlay = document.getElementById('btn-play');
   var scenarioSelect = document.getElementById('scenario-select');
 
-  // The step-description and stats-table live in a sidebar docked next
-  // to the canvas. It's closed by default (canvas-only UI); either
-  // toggle button opens it showing that panel, and clicking the
-  // already-active toggle closes it again. This is independent of which
-  // scenario is loaded, so it's set up once here rather than inside
-  // loadScenario().
+  // The step-description, stats-table, and display-settings panels all
+  // live in the same sidebar docked next to the canvas, one at a time.
+  // It's closed by default (canvas-only UI); any toggle button opens it
+  // showing that panel, and clicking the already-active toggle closes it
+  // again. This is independent of which scenario is loaded, so it's set
+  // up once here rather than inside loadScenario().
   var drawer = document.getElementById('drawer');
   var drawerStepPanel = document.getElementById('drawer-step');
   var drawerTablePanel = document.getElementById('drawer-table');
+  var drawerSettingsPanel = document.getElementById('drawer-settings');
   var btnToggleStep = document.getElementById('btn-toggle-step');
   var btnToggleTable = document.getElementById('btn-toggle-table');
-  var drawerMode = null; // null | 'step' | 'table'
+  var btnToggleSettings = document.getElementById('btn-toggle-settings');
+  var drawerMode = null; // null | 'step' | 'table' | 'settings'
 
   function setDrawerMode(mode) {
     drawerMode = mode;
     drawer.hidden = mode === null;
     drawerStepPanel.classList.toggle('is-active', mode === 'step');
     drawerTablePanel.classList.toggle('is-active', mode === 'table');
+    drawerSettingsPanel.classList.toggle('is-active', mode === 'settings');
     btnToggleStep.setAttribute('aria-pressed', String(mode === 'step'));
     btnToggleTable.setAttribute('aria-pressed', String(mode === 'table'));
+    btnToggleSettings.setAttribute('aria-pressed', String(mode === 'settings'));
   }
 
   btnToggleStep.addEventListener('click', function () {
@@ -288,6 +298,34 @@
   });
   btnToggleTable.addEventListener('click', function () {
     setDrawerMode(drawerMode === 'table' ? null : 'table');
+  });
+  btnToggleSettings.addEventListener('click', function () {
+    setDrawerMode(drawerMode === 'settings' ? null : 'settings');
+  });
+
+  // -------------------------------------------------------------
+  // Display settings: both off by default. Global (not per-scenario) -
+  // toggling one rebuilds the CURRENTLY active scenario's graph in place
+  // (see the checkbox listeners below), preserving whatever step the
+  // algorithm run is currently on rather than resetting to the start.
+  // -------------------------------------------------------------
+  var settings = {
+    showVertexLabels: false,
+    showEdgeWeights: false,
+  };
+  var currentScenario = SCENARIOS[0]; // updated by the scenario picker below; read back by the settings checkboxes
+  var elSettingVertexLabels = document.getElementById('setting-vertex-labels');
+  var elSettingEdgeWeights = document.getElementById('setting-edge-weights');
+  elSettingVertexLabels.checked = settings.showVertexLabels;
+  elSettingEdgeWeights.checked = settings.showEdgeWeights;
+
+  elSettingVertexLabels.addEventListener('change', function () {
+    settings.showVertexLabels = elSettingVertexLabels.checked;
+    loadScenario(currentScenario, app.getCurrentIndex());
+  });
+  elSettingEdgeWeights.addEventListener('change', function () {
+    settings.showEdgeWeights = elSettingEdgeWeights.checked;
+    loadScenario(currentScenario, app.getCurrentIndex());
   });
 
   // Reassigned by every loadScenario() call below; the toolbar/keyboard
@@ -335,7 +373,8 @@
     scenarioSelect.appendChild(opt);
   });
   scenarioSelect.addEventListener('change', function () {
-    loadScenario(SCENARIOS[Number(scenarioSelect.value)]);
+    currentScenario = SCENARIOS[Number(scenarioSelect.value)];
+    loadScenario(currentScenario); // no startIndex - a genuine scenario change always starts over at step 0
   });
 
   // ===============================================================
@@ -349,12 +388,36 @@
   // every routing.js helper called below transparently operate on the
   // new scenario without needing to know scenarios exist at all.
   // ===============================================================
-  function loadScenario(scenario) {
+  function loadScenario(scenario, startIndex) {
     app.stopPlay(); // halt the OUTGOING scenario's Play loop before tearing anything down
 
     setActiveScenario(scenario);
     var NODE_ORDER = scenario.nodeOrder;
     var START = scenario.startNode || 'S';
+
+    // This build's node radius + "currently visiting" marker geometry -
+    // both depend on settings.showVertexLabels (see NODE_R_WITH_LABEL/
+    // NODE_R_NO_LABEL up top), so they're computed fresh on every build
+    // rather than once as fixed top-level constants.
+    var NODE_R = settings.showVertexLabels ? NODE_R_WITH_LABEL : NODE_R_NO_LABEL;
+    var CHEVRON_TOP_Y = -(NODE_R + 18);
+    var CHEVRON_TIP_Y = -(NODE_R + 8);
+
+    // Weight-to-stroke-width scale for this build, used only when
+    // settings.showEdgeWeights is off (see weightToWidth below) - a
+    // straight linear map from THIS scenario's own actual min/max edge
+    // weight to a fixed pixel range, so "thickest line on screen" always
+    // means "this scenario's heaviest edge" regardless of what the raw
+    // weight numbers happen to be.
+    var MIN_STROKE = 1.5, MAX_STROKE = 9;
+    var edgeWeightValues = EDGES.map(function (e) { return e[2]; });
+    var minEdgeWeight = Math.min.apply(null, edgeWeightValues);
+    var maxEdgeWeight = Math.max.apply(null, edgeWeightValues);
+    function weightToWidth(w) {
+      if (maxEdgeWeight === minEdgeWeight) return (MIN_STROKE + MAX_STROKE) / 2;
+      var t = (w - minEdgeWeight) / (maxEdgeWeight - minEdgeWeight);
+      return Math.round((MIN_STROKE + t * (MAX_STROKE - MIN_STROKE)) * 10) / 10;
+    }
 
     // The graph's real, permanent layout - captured once per scenario,
     // before anything ever touches NODES[node].x/y, so dragging (a
@@ -447,6 +510,9 @@
         class: 'edge-base',
         x1: a.x, y1: a.y, x2: b.x, y2: b.y,
       });
+      // Inline style, not the attribute - it needs to win over the
+      // .edge-base rule regardless of specificity (see styles.css).
+      lineEl.style.strokeWidth = (settings.showEdgeWeights ? 3 : weightToWidth(w)) + 'px';
       gEdgesBase.appendChild(lineEl);
       edgeEls[edgeKey(edge[0], edge[1])] = lineEl;
 
@@ -456,33 +522,82 @@
       // behind it for legibility over crossing/bundled lines. Radius is
       // sized to comfortably fit the widest weight in this graph (two
       // digits, e.g. "20") without the text touching the edge of the circle.
-      var labelPt = findLabelPoint(a, b);
-      var labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
-      labelGroup.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 9.5 }));
-      var text = svgEl('text', { x: 0, y: 3, 'text-anchor': 'middle' });
-      text.textContent = w;
-      labelGroup.appendChild(text);
-      gEdgeLabels.appendChild(labelGroup);
+      // Only built at all when settings.showEdgeWeights is on - when it's
+      // off, the edge's own thickness (set above) carries the weight
+      // instead, so there's nothing to label.
+      var labelGroup = null;
+      if (settings.showEdgeWeights) {
+        var labelPt = findLabelPoint(a, b);
+        labelGroup = svgEl('g', { class: 'edge-weight', transform: 'translate(' + labelPt.x + ',' + labelPt.y + ')' });
+        labelGroup.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 9.5 }));
+        var text = svgEl('text', { x: 0, y: 3, 'text-anchor': 'middle' });
+        text.textContent = w;
+        labelGroup.appendChild(text);
+        gEdgeLabels.appendChild(labelGroup);
+      }
 
       edgeGeom.push({ from: edge[0], to: edge[1], lineEl: lineEl, labelEl: labelGroup });
     });
 
-    // One reusable <path> per destination for its colored route.
+    // One "route group" <g> per destination for its colored route. When
+    // settings.showEdgeWeights is on, it holds exactly one <path> - the
+    // whole route as a single smooth shape (routing.js's
+    // buildDestinationPathD) - so the morph/grow animations further
+    // below (which need one element to resample/measure) keep working
+    // exactly as before. When it's off, it instead holds one <path> PER
+    // HOP (routing.js's buildDestinationHopSegments), each independently
+    // stroke-width'd to its own edge's weight, since a single <path>
+    // can't vary its own stroke-width along its length - see
+    // syncRouteSegmentEls below, which keeps that per-hop element count
+    // in sync every render (hop count changes whenever the shortest path
+    // itself does). Segments mode deliberately skips the morph/draw-on
+    // animations - a plain opacity fade (the existing .route-path CSS
+    // transition) carries a first appearance instead, and shape changes
+    // just snap - animating a set of independently-widthed segments
+    // smoothly would need much more machinery for a secondary display
+    // mode.
+    var showWeights = settings.showEdgeWeights;
     var routeEls = {};
     NODE_ORDER.forEach(function (node) {
       if (node === START) return;
-      var el = svgEl('path', {
-        class: 'route-path',
-        id: 'route-' + node,
-        fill: 'none',
-        stroke: NODES[node].color,
-      });
-      gPaths.appendChild(el);
-      routeEls[node] = el;
+      var g = svgEl('g', { class: 'route-group', 'data-node': node });
+      gPaths.appendChild(g);
+      var rec = { g: g, mode: showWeights ? 'single' : 'segments', els: [], color: NODES[node].color };
+      if (rec.mode === 'single') {
+        var el = svgEl('path', { class: 'route-path', id: 'route-' + node, fill: 'none', stroke: rec.color });
+        el.style.strokeWidth = '4px';
+        g.appendChild(el);
+        rec.els.push(el);
+        rec.singleEl = el;
+      }
+      routeEls[node] = rec;
     });
 
+    // Adds/removes <path> children of a segments-mode route group so it
+    // has exactly one per hop, then sets each one's shape + weight-scaled
+    // width. Reusing existing elements where possible (rather than
+    // always clearing and rebuilding) keeps their is-visible/is-
+    // highlighted classes and CSS transitions intact across renders.
+    function syncRouteSegmentEls(rec, hops) {
+      while (rec.els.length < hops.length) {
+        var el = svgEl('path', { class: 'route-path', fill: 'none', stroke: rec.color });
+        rec.g.appendChild(el);
+        rec.els.push(el);
+      }
+      while (rec.els.length > hops.length) {
+        rec.els.pop().remove();
+      }
+      hops.forEach(function (hop, i) {
+        rec.els[i].setAttribute('d', hop.d);
+        rec.els[i].style.strokeWidth = weightToWidth(hop.weight) + 'px';
+      });
+    }
+
     // Node circles + labels. (Distance values live only in the edge weight
-    // labels and the stats table now - no per-node distance badge.)
+    // labels and the stats table now - no per-node distance badge.) The
+    // label is left with no text content at all when
+    // settings.showVertexLabels is off, rather than hidden via CSS -
+    // there's nothing there to hide.
     var nodeEls = {};
     NODE_ORDER.forEach(function (node) {
       var n = NODES[node];
@@ -490,7 +605,7 @@
 
       var circle = svgEl('circle', { class: 'node-circle', r: NODE_R, fill: n.color });
       var label = svgEl('text', { class: 'node-label', y: 4, 'text-anchor': 'middle', fill: textColorFor(n.color) });
-      label.textContent = node;
+      if (settings.showVertexLabels) label.textContent = node;
 
       g.appendChild(circle);
       g.appendChild(label);
@@ -522,7 +637,8 @@
     // -------------------------------------------------------------
     function setHighlighted(node, on) {
       nodeEls[node].g.classList.toggle('is-highlighted', on);
-      if (routeEls[node]) routeEls[node].classList.toggle('is-highlighted', on);
+      var rec = routeEls[node];
+      if (rec) rec.els.forEach(function (el) { el.classList.toggle('is-highlighted', on); });
     }
 
     function resyncHoverHighlight() {
@@ -530,10 +646,11 @@
       if (lastMouseX >= 0) {
         var el = document.elementFromPoint(lastMouseX, lastMouseY);
         var nodeG = el && el.closest && el.closest('.node');
+        var routeG = el && el.closest && el.closest('.route-group');
         if (nodeG) {
           hoveredNode = nodeG.getAttribute('data-node');
-        } else if (el && el.classList && el.classList.contains('route-path')) {
-          hoveredNode = el.id.replace('route-', '');
+        } else if (routeG) {
+          hoveredNode = routeG.getAttribute('data-node');
         }
       }
       NODE_ORDER.forEach(function (node) { setHighlighted(node, node === hoveredNode); });
@@ -541,13 +658,19 @@
 
     NODE_ORDER.forEach(function (node) {
       var g = nodeEls[node].g;
-      var routeEl = routeEls[node]; // undefined for START - there's no route "to" the origin
+      var rec = routeEls[node]; // undefined for START - there's no route "to" the origin
 
       g.addEventListener('mouseenter', function () { setHighlighted(node, true); });
       g.addEventListener('mouseleave', function () { setHighlighted(node, false); });
-      if (routeEl) {
-        routeEl.addEventListener('mouseenter', function () { setHighlighted(node, true); });
-        routeEl.addEventListener('mouseleave', function () { setHighlighted(node, false); });
+      if (rec) {
+        // mouseenter/leave on the GROUP fire correctly for entering/
+        // leaving any of its child paths - a <g>'s hit area (and hence
+        // its "already contains the pointer" state) is the union of its
+        // children's painted geometry, exactly like an HTML element with
+        // descendants, so this works the same whether the group holds
+        // one path (weights shown) or several (segments mode).
+        rec.g.addEventListener('mouseenter', function () { setHighlighted(node, true); });
+        rec.g.addEventListener('mouseleave', function () { setHighlighted(node, false); });
       }
     });
 
@@ -603,8 +726,10 @@
         edge.lineEl.setAttribute('y1', a.y);
         edge.lineEl.setAttribute('x2', b.x);
         edge.lineEl.setAttribute('y2', b.y);
-        var labelPt = findLabelPoint(a, b);
-        edge.labelEl.setAttribute('transform', 'translate(' + labelPt.x + ',' + labelPt.y + ')');
+        if (edge.labelEl) { // null when settings.showEdgeWeights is off - nothing to reposition
+          var labelPt = findLabelPoint(a, b);
+          edge.labelEl.setAttribute('transform', 'translate(' + labelPt.x + ',' + labelPt.y + ')');
+        }
       });
     }
 
@@ -619,11 +744,19 @@
     function repositionGraph() {
       layoutNodesAndEdges();
       var frame = frames[currentIndex];
-      var allPaths = buildAllPaths(frame);
-      Object.keys(routeEls).forEach(function (node) {
-        var d = allPaths[node];
-        if (d) routeEls[node].setAttribute('d', d);
-      });
+      if (showWeights) {
+        var allPaths = buildAllPaths(frame);
+        Object.keys(routeEls).forEach(function (node) {
+          var d = allPaths[node];
+          if (d) routeEls[node].singleEl.setAttribute('d', d);
+        });
+      } else {
+        var allSegments = buildAllHopSegments(frame);
+        Object.keys(routeEls).forEach(function (node) {
+          var hops = allSegments[node];
+          if (hops) syncRouteSegmentEls(routeEls[node], hops);
+        });
+      }
       if (frame.processingNode) {
         var mn = NODES[frame.processingNode];
         currentMarkerGroup.style.transform = 'translate(' + mn.x + 'px, ' + mn.y + 'px)';
@@ -813,35 +946,53 @@
       // internally - reusing it here keeps "which edges are solid" and
       // "which edges the colored lines run through" from ever disagreeing.)
       var edgeUsage = collectEdgeUsage(frame);
-      var allPaths = buildAllPaths(frame);
-      Object.keys(routeEls).forEach(function (node) {
-        var d = allPaths[node];
-        var el = routeEls[node];
-        if (d) {
-          var currentD = el.getAttribute('d');
-          var wasVisible = el.classList.contains('is-visible');
-          if (!wasVisible) {
-            // First appearance: draw it growing outward from S instead of
-            // just fading in over its full shape.
-            addVisibleInstant(el);
-            growPathFromStart(el, d);
-          } else if (currentD && currentD !== d) {
-            // Already on screen and its shape actually changed (relaxed to
-            // a better route, or - going Back - unrelaxed to a worse one):
-            // sweep into the new shape instead of snapping.
-            morphPathTo(el, d);
+      if (showWeights) {
+        var allPaths = buildAllPaths(frame);
+        Object.keys(routeEls).forEach(function (node) {
+          var d = allPaths[node];
+          var el = routeEls[node].singleEl;
+          if (d) {
+            var currentD = el.getAttribute('d');
+            var wasVisible = el.classList.contains('is-visible');
+            if (!wasVisible) {
+              // First appearance: draw it growing outward from S instead of
+              // just fading in over its full shape.
+              addVisibleInstant(el);
+              growPathFromStart(el, d);
+            } else if (currentD && currentD !== d) {
+              // Already on screen and its shape actually changed (relaxed to
+              // a better route, or - going Back - unrelaxed to a worse one):
+              // sweep into the new shape instead of snapping.
+              morphPathTo(el, d);
+            } else {
+              // Shape is unchanged - nothing to animate.
+              cancelMorph(el);
+              cancelGrow(el);
+              el.setAttribute('d', d);
+            }
           } else {
-            // Shape is unchanged - nothing to animate.
             cancelMorph(el);
             cancelGrow(el);
-            el.setAttribute('d', d);
+            el.classList.remove('is-visible');
           }
-        } else {
-          cancelMorph(el);
-          cancelGrow(el);
-          el.classList.remove('is-visible');
-        }
-      });
+        });
+      } else {
+        // Segments mode: no morph/draw-on animation (see the routeEls
+        // build comment above) - each hop's own <path> just gets its
+        // shape/width set directly, with a plain CSS opacity fade for
+        // first appearance.
+        var allSegments = buildAllHopSegments(frame);
+        Object.keys(routeEls).forEach(function (node) {
+          var hops = allSegments[node];
+          var rec = routeEls[node];
+          if (hops) {
+            syncRouteSegmentEls(rec, hops);
+            rec.els.forEach(function (el) { el.classList.add('is-visible'); });
+          } else {
+            rec.els.forEach(function (el) { el.classList.remove('is-visible'); });
+          }
+        });
+      }
 
       // --- base edges: solid once part of the current shortest-path tree,
       // dashed while still untraversed -----------------------------------
@@ -920,6 +1071,7 @@
     app.reset = function () { stopPlay(); renderStep(0); };
     app.seek = function (index) { stopPlay(); renderStep(index); };
     app.stopPlay = stopPlay;
+    app.getCurrentIndex = function () { return currentIndex; }; // read by the settings checkboxes, so toggling one can rebuild in place without losing the current step
     app.playToggle = function () {
       if (playTimer) {
         stopPlay();
@@ -936,7 +1088,7 @@
       }, 2200); // each step is now a full node visit with a longer description, so give it more time to read
     };
 
-    renderStep(0);
+    renderStep(typeof startIndex === 'number' ? startIndex : 0);
   }
 
   setDrawerMode(null);
