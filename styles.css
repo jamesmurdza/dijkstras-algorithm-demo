@@ -94,11 +94,31 @@ body {
   overflow: hidden; /* the app is exactly one viewport: canvas + toolbar */
 }
 
+/* Top-level row: the sidebar (see below) plus .content-column, so the
+   sidebar spans the full page height with nothing above or below it -
+   .content-column carries the header/canvas/toolbar stack that used to
+   span the full page width, now confined to whatever's left to the
+   sidebar's right. position: relative anchors the sidebar's small-screen
+   overlay mode (see the max-width: 640px query far below), which needs a
+   full-height box to slide up against. */
 .app {
   height: 100vh;
   height: 100dvh;
   display: flex;
+  flex-direction: row;
+  position: relative;
+}
+
+/* Everything that isn't the sidebar, stacked in a column: the scenario
+   picker up top, the canvas filling whatever's left, the toolbar pinned
+   to the bottom - all confined to the sidebar's right rather than
+   spanning the full page width. */
+.content-column {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* Just the scenario picker now - the app's own title moved into the
@@ -172,20 +192,12 @@ body {
   .app-header { flex-wrap: wrap; row-gap: 6px; }
 }
 
-/* ------------------------- main row (canvas + sidebar) ------------------------- */
-
-.main-area {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: row;
-  position: relative; /* positioning context for the sidebar's mobile overlay mode */
-  overflow: hidden;
-}
+/* ------------------------- canvas ------------------------- */
 
 .canvas-area {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0; /* same flex-shrink gotcha as .sidebar below - without this it refuses to shrink below its content's size */
   position: relative;
   background: var(--canvas);
 }
@@ -829,17 +841,17 @@ body {
 
   /* Not enough width to dock the EXPANDED sidebar beside the canvas here
      - it becomes a full-height overlay sliding in from the left instead
-     (positioned against .main-area, set to `position: relative` above),
-     covering the canvas rather than sharing space with it - 85vw is only
-     reasonable as a temporary overlay, not something to permanently
-     reserve from the canvas on a small screen. */
+     (positioned against .app, set to `position: relative` above),
+     covering the header/canvas/toolbar column rather than sharing space
+     with it - 85vw is only reasonable as a temporary overlay, not
+     something to permanently reserve from the canvas on a small screen. */
   .sidebar:not(.is-collapsed) {
     position: absolute;
     top: 0;
     left: 0;
     bottom: 0;
     z-index: 1; /* .sidebar is now first in DOM (for the left-docked desktop layout), so without
-                   this it would stack UNDER .canvas-area here and silently eat its own clicks -
+                   this it would stack UNDER .content-column here and silently eat its own clicks -
                    among positioned siblings with equal z-index, later DOM order wins by default. */
     width: 85vw;
     max-width: 320px;

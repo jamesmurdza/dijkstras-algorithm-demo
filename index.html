@@ -7,78 +7,72 @@
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Top-level row: a collapsible sidebar (docked LEFT, full page height -
+       no header strip above it) plus everything else stacked in a column
+       to its right (scenario picker, canvas, toolbar). The sidebar's own
+       header (title + collapse toggle) is always visible; collapsing it
+       shrinks the sidebar down to just that header bar (a slim rail) and
+       hides the tabs/content below it, rather than removing the whole
+       sidebar from the DOM's visible flow - that's what keeps the toggle
+       itself reachable either way. The canvas shrinks to make room
+       whenever it's expanded. Its four tabs (icons only - see their
+       aria-label/title for what each one is) are: the live distances
+       table, display settings, the algorithm's pseudocode, and a plain-
+       English walkthrough of how it works. -->
   <div class="app">
-    <header class="app-header">
-      <div class="scenario-picker">
-        <select id="scenario-select" aria-label="Graph scenario"></select>
+    <aside id="sidebar" class="sidebar is-collapsed" aria-label="Details">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">Dijkstra's Algorithm Visualization</h1>
+        <button id="btn-toggle-sidebar" class="btn btn--icon" type="button" aria-pressed="false" title="Expand the sidebar" aria-label="Expand the sidebar">◧</button>
       </div>
-    </header>
 
-    <!-- Main row: a collapsible sidebar (docked LEFT) plus the graph
-         canvas. The sidebar's own header (title + collapse toggle) is
-         always visible; collapsing it shrinks the sidebar down to just
-         that header bar (a slim rail) and hides the tabs/content below
-         it, rather than removing the whole sidebar from the DOM's
-         visible flow - that's what keeps the toggle itself reachable
-         either way. The canvas shrinks to make room whenever it's
-         expanded. Its four tabs (icons only - see their aria-label/title
-         for what each one is) are: the live distances table, display
-         settings, the algorithm's pseudocode, and a plain-English
-         walkthrough of how it works. -->
-    <main class="main-area">
-      <aside id="sidebar" class="sidebar is-collapsed" aria-label="Details">
-        <div class="sidebar-header">
-          <h1 class="sidebar-title">Dijkstra's Algorithm Visualization</h1>
-          <button id="btn-toggle-sidebar" class="btn btn--icon" type="button" aria-pressed="false" title="Expand the sidebar" aria-label="Expand the sidebar">◧</button>
+      <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
+        <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
+        <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
+        <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode" title="Pseudocode" aria-label="Pseudocode">{}</button>
+        <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
+      </div>
+
+      <div class="sidebar-content">
+        <div id="tab-table" class="sidebar-panel is-active" role="tabpanel">
+          <div class="table-wrap">
+            <table class="stats-table" id="stats-table" aria-label="Tentative distances from S">
+              <thead>
+                <tr>
+                  <th scope="col">Node</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Distance</th>
+                </tr>
+              </thead>
+              <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
-          <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
-          <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
-          <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode" title="Pseudocode" aria-label="Pseudocode">{}</button>
-          <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
+        <div id="tab-settings" class="sidebar-panel" role="tabpanel">
+          <p class="settings-heading">Display settings</p>
+          <label class="settings-row">
+            <input id="setting-vertex-labels" type="checkbox" checked />
+            <span>Show vertex labels</span>
+          </label>
+          <label class="settings-row">
+            <input id="setting-edge-weights" type="checkbox" checked />
+            <span>Show edge weights</span>
+          </label>
+          <p class="settings-note">Both on by default. With edge weights off, each
+            edge's thickness stands in for its weight instead.</p>
         </div>
 
-        <div class="sidebar-content">
-          <div id="tab-table" class="sidebar-panel is-active" role="tabpanel">
-            <div class="table-wrap">
-              <table class="stats-table" id="stats-table" aria-label="Tentative distances from S">
-                <thead>
-                  <tr>
-                    <th scope="col">Node</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Distance</th>
-                  </tr>
-                </thead>
-                <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div id="tab-settings" class="sidebar-panel" role="tabpanel">
-            <p class="settings-heading">Display settings</p>
-            <label class="settings-row">
-              <input id="setting-vertex-labels" type="checkbox" checked />
-              <span>Show vertex labels</span>
-            </label>
-            <label class="settings-row">
-              <input id="setting-edge-weights" type="checkbox" checked />
-              <span>Show edge weights</span>
-            </label>
-            <p class="settings-note">Both on by default. With edge weights off, each
-              edge's thickness stands in for its weight instead.</p>
-          </div>
-
-          <div id="tab-pseudocode" class="sidebar-panel" role="tabpanel">
-            <!-- Line numbers come from a CSS counter (one increment per
-                 .pc-line, see styles.css) rather than being hand-typed here,
-                 so they can't drift out of sync if a line ever gets added or
-                 removed. Syntax coloring is hand-marked-up (a handful of
-                 .pc-* token classes) rather than run through a highlighter
-                 library, matching the rest of this app's no-build-step,
-                 no-dependencies approach - it's ~20 fixed lines of pseudocode,
-                 not a general-purpose code editor. -->
-            <pre class="pseudocode"><code class="pc"
+        <div id="tab-pseudocode" class="sidebar-panel" role="tabpanel">
+          <!-- Line numbers come from a CSS counter (one increment per
+               .pc-line, see styles.css) rather than being hand-typed here,
+               so they can't drift out of sync if a line ever gets added or
+               removed. Syntax coloring is hand-marked-up (a handful of
+               .pc-* token classes) rather than run through a highlighter
+               library, matching the rest of this app's no-build-step,
+               no-dependencies approach - it's ~20 fixed lines of pseudocode,
+               not a general-purpose code editor. -->
+          <pre class="pseudocode"><code class="pc"
 ><span class="pc-line"><span class="pc-line-code"><span class="pc-com"># Find the shortest (weighted) paths from start to all other nodes</span></span></span
 ><span class="pc-line"><span class="pc-line-code"><span class="pc-kw">def</span> <span class="pc-def">dijkstra</span>(nodes: <span class="pc-builtin">list</span>[<span class="pc-builtin">Node</span>], start: <span class="pc-builtin">Node</span>) -&gt; <span class="pc-builtin">dict</span>[<span class="pc-builtin">Node</span>, <span class="pc-builtin">float</span>]:</span></span
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All nodes, and our distance estimates</span></span></span
@@ -102,56 +96,66 @@
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All distances are now correct</span></span></span
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">return</span> distances</span></span
 ></code></pre>
-          </div>
-
-          <div id="tab-description" class="sidebar-panel" role="tabpanel">
-            <p>Dijkstra's algorithm finds the shortest distance from a single
-              start node to every other node in a weighted graph.</p>
-            <p>It starts by assuming every node is unreachable (distance
-              infinity) except the start node, which is distance zero.
-              Every node begins unvisited.</p>
-            <p>Then it repeats one step until every node has been visited:
-              among the unvisited nodes, pick the one with the smallest
-              known distance, and mark it visited. That distance is now
-              final - it can never improve later.</p>
-            <p>For every neighbor of the node just visited, check whether
-              going through it gives a shorter path than what that
-              neighbor currently has on record ("relaxing" the edge). If
-              so, update the neighbor's distance and remember this node
-              as the way to reach it.</p>
-            <p>Once every node has been visited, every distance is
-              guaranteed correct, and retracing each node's recorded
-              predecessor back to the start gives its shortest path.</p>
-          </div>
         </div>
 
-        <!-- Drag-to-resize the sidebar's width. Purely a mouse/touch
-             affordance layered over the existing right border - see
-             app.js for the drag logic and styles.css for why this adds
-             no visible change of its own (no width/color, just a wider
-             invisible hit target centered on that same border). -->
-        <div id="sidebar-resize-handle" class="sidebar-resize-handle" aria-hidden="true"></div>
-      </aside>
+        <div id="tab-description" class="sidebar-panel" role="tabpanel">
+          <p>Dijkstra's algorithm finds the shortest distance from a single
+            start node to every other node in a weighted graph.</p>
+          <p>It starts by assuming every node is unreachable (distance
+            infinity) except the start node, which is distance zero.
+            Every node begins unvisited.</p>
+          <p>Then it repeats one step until every node has been visited:
+            among the unvisited nodes, pick the one with the smallest
+            known distance, and mark it visited. That distance is now
+            final - it can never improve later.</p>
+          <p>For every neighbor of the node just visited, check whether
+            going through it gives a shorter path than what that
+            neighbor currently has on record ("relaxing" the edge). If
+            so, update the neighbor's distance and remember this node
+            as the way to reach it.</p>
+          <p>Once every node has been visited, every distance is
+            guaranteed correct, and retracing each node's recorded
+            predecessor back to the start gives its shortest path.</p>
+        </div>
+      </div>
+
+      <!-- Drag-to-resize the sidebar's width. Purely a mouse/touch
+           affordance layered over the existing right border - see
+           app.js for the drag logic and styles.css for why this adds
+           no visible change of its own (no width/color, just a wider
+           invisible hit target centered on that same border). -->
+      <div id="sidebar-resize-handle" class="sidebar-resize-handle" aria-hidden="true"></div>
+    </aside>
+
+    <!-- Everything that isn't the sidebar: the scenario picker, the
+         canvas, and the toolbar, stacked in a column that fills
+         whatever width is left to the sidebar's right. -->
+    <div class="content-column">
+      <header class="app-header">
+        <div class="scenario-picker">
+          <select id="scenario-select" aria-label="Graph scenario"></select>
+        </div>
+      </header>
 
       <div class="canvas-area" aria-label="Graph visualization">
         <div id="graph-container" class="graph-container">
           <!-- SVG graph is built and updated entirely by app.js -->
         </div>
       </div>
-    </main>
 
-    <!-- Toolbar: the only other piece of UI besides the canvas. A long
-         slider (with its own tick marks, one per step) plus Previous/
-         Next triangles. -->
-    <footer class="toolbar" role="group" aria-label="Step controls">
-      <div class="slider-wrap">
-        <input id="step-slider" class="slider" type="range" min="0" max="0" step="1" value="0"
-               aria-label="Algorithm step" />
-        <div id="slider-ticks" class="slider-ticks" aria-hidden="true"><!-- tick marks injected by app.js --></div>
-      </div>
-      <button id="btn-back" class="btn btn--icon" type="button" title="Previous step" aria-label="Previous step">◀</button>
-      <button id="btn-next" class="btn btn--icon" type="button" title="Next step" aria-label="Next step">▶</button>
-    </footer>
+      <!-- Toolbar: the only other piece of UI besides the canvas. A long
+           slider (with its own tick marks, one per step) plus Previous/
+           Next triangles. -->
+      <footer class="toolbar" role="group" aria-label="Step controls">
+        <div class="slider-wrap">
+          <input id="step-slider" class="slider" type="range" min="0" max="0" step="1" value="0"
+                 aria-label="Algorithm step" />
+          <div id="slider-ticks" class="slider-ticks" aria-hidden="true"><!-- tick marks injected by app.js --></div>
+        </div>
+        <button id="btn-back" class="btn btn--icon" type="button" title="Previous step" aria-label="Previous step">◀</button>
+        <button id="btn-next" class="btn btn--icon" type="button" title="Next step" aria-label="Next step">▶</button>
+      </footer>
+    </div>
   </div>
 
   <script src="dijkstra.js"></script>
