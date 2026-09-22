@@ -28,27 +28,12 @@
       </div>
 
       <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
-        <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
         <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
+        <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
         <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
       </div>
 
       <div class="sidebar-content">
-        <div id="tab-table" class="sidebar-panel is-active" role="tabpanel">
-          <div class="table-wrap">
-            <table class="stats-table" id="stats-table" aria-label="Tentative distances from S">
-              <thead>
-                <tr>
-                  <th scope="col">Node</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Distance</th>
-                </tr>
-              </thead>
-              <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
-            </table>
-          </div>
-        </div>
-
         <div id="tab-description" class="sidebar-panel" role="tabpanel">
           <p>Dijkstra's algorithm finds the shortest distance from a single
             start node to every other node in a weighted graph.</p>
@@ -100,6 +85,21 @@
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All distances are now correct</span></span></span
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">return</span> distances</span></span
 ></code></pre>
+        </div>
+
+        <div id="tab-table" class="sidebar-panel is-active" role="tabpanel">
+          <div class="table-wrap">
+            <table class="stats-table" id="stats-table" aria-label="Tentative distances from S">
+              <thead>
+                <tr>
+                  <th scope="col">Node</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Distance</th>
+                </tr>
+              </thead>
+              <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
+            </table>
+          </div>
         </div>
 
         <div id="tab-settings" class="sidebar-panel" role="tabpanel">
