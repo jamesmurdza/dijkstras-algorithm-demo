@@ -229,13 +229,21 @@ body {
   stroke: var(--edge-gray);
   stroke-linecap: round;
   stroke-dasharray: 6 5;
-  transition: stroke-width 0.2s ease;
+  /* --edge-opacity is a custom property (not a plain opacity style) set
+     per-element in app.js, only in 'opacity' mode - see the edgeGeom
+     build comment there for why it has to go through a custom property
+     rather than a direct inline opacity: a plain inline style would
+     always beat .edge-base.is-used below regardless of specificity,
+     which would wrongly keep a heavy-but-used edge's gray line peeking
+     through. Routed through a var() instead, .is-used's own higher-
+     specificity class selector still wins normally. */
+  opacity: var(--edge-opacity, 1);
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
 }
 /* stroke-width is set per-element in app.js (inline style, so it wins
-   over this rule regardless of specificity) - a fixed 3px in 'labels'/
-   'none' mode, or scaled to each edge's own weight in 'thickness' mode
-   (see settings.edgeWeightStyle / weightToWidth() in app.js) - the whole
-   reason that setting exists. */
+   over this rule regardless of specificity) - a fixed 3px always now
+   (see settings.edgeWeightStyle in app.js - 'opacity' mode varies
+   translucency instead of width, unlike the old 'thickness' mode). */
 .edge-base.is-used {
   opacity: 0;
 }

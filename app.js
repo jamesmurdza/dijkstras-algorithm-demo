@@ -351,9 +351,10 @@
   // -------------------------------------------------------------
   var settings = {
     showVertexLabels: true,
-    // 'labels' (weight number on each edge), 'thickness' (edge width
-    // scales to its weight, no number), or 'none' (neither - a plain
-    // fixed-width line, same layout as 'labels' minus the number).
+    // 'labels' (weight number on each edge), 'opacity' (each base edge's
+    // translucency scales to its weight instead - heavier = more
+    // translucent, no number), or 'none' (neither - a plain fixed-width,
+    // fully opaque line, same layout as 'labels' minus the number).
     edgeWeightStyle: 'labels',
     // Off by default, unlike the two above - a tooltip on every hover is
     // more clutter than most people want running by default; opt-in for
@@ -451,28 +452,27 @@
     var CHEVRON_TOP_Y = -(NODE_R + 18);
     var CHEVRON_TIP_Y = -(NODE_R + 8);
 
-    // Weight-to-stroke-width scale for this build, used only in
-    // 'thickness' mode (see weightToWidth below) - a straight linear map
-    // from THIS scenario's own actual min/max edge weight to a fixed
-    // pixel range, so "thickest line on screen" always means "this
-    // scenario's heaviest edge" regardless of what the raw weight numbers
-    // happen to be.
-    var MIN_STROKE = 1.5, MAX_STROKE = 9;
+    // Weight-to-opacity scale for this build, used only in 'opacity' mode
+    // (see weightToOpacity below) - a straight linear map from THIS
+    // scenario's own actual min/max edge weight to a fixed opacity range,
+    // so "most transparent line on screen" always means "this scenario's
+    // heaviest edge" regardless of what the raw weight numbers happen to
+    // be. Applied to the base gray edges only (see the edgeGeom build
+    // below) - the colored shortest-path routes always keep the exact
+    // same single smooth-path geometry as 'labels'/'none' mode, in every
+    // mode, unaffected by edge weight - a single <path> can't vary its
+    // own opacity along its length any more than it could vary its own
+    // stroke-width, which is why 'thickness' needed per-hop segments back
+    // when this setting scaled width instead.
+    var MIN_OPACITY = 0.15, MAX_OPACITY = 1;
     var edgeWeightValues = EDGES.map(function (e) { return e[2]; });
     var minEdgeWeight = Math.min.apply(null, edgeWeightValues);
     var maxEdgeWeight = Math.max.apply(null, edgeWeightValues);
-    function weightToWidth(w) {
-      if (maxEdgeWeight === minEdgeWeight) return (MIN_STROKE + MAX_STROKE) / 2;
+    function weightToOpacity(w) {
+      if (maxEdgeWeight === minEdgeWeight) return (MIN_OPACITY + MAX_OPACITY) / 2;
       var t = (w - minEdgeWeight) / (maxEdgeWeight - minEdgeWeight);
-      return Math.round((MIN_STROKE + t * (MAX_STROKE - MIN_STROKE)) * 10) / 10;
+      return Math.round((MAX_OPACITY - t * (MAX_OPACITY - MIN_OPACITY)) * 100) / 100;
     }
-    // Only 'thickness' mode needs per-hop segments/scaled widths; both
-    // 'labels' and 'none' render a route as one fixed-width path (they
-    // differ only in whether a weight number gets drawn on each edge -
-    // see the labelGroup block below), so this single flag still covers
-    // the same "single path vs. per-hop segments" fork everything below
-    // was already built around.
-    var showWeights = settings.edgeWeightStyle !== 'thickness';
 
     // The graph's real, permanent layout - captured once per scenario,
     // before anything ever touches NODES[node].x/y, so dragging (a
@@ -566,8 +566,22 @@
         x1: a.x, y1: a.y, x2: b.x, y2: b.y,
       });
       // Inline style, not the attribute - it needs to win over the
-      // .edge-base rule regardless of specificity (see styles.css).
-      lineEl.style.strokeWidth = (showWeights ? 3 : weightToWidth(w)) + 'px';
+      // .edge-base rule regardless of specificity (see styles.css). Fixed
+      // 3px in every mode now - 'opacity' mode varies translucency
+      // instead (via the --edge-opacity custom property below), not width.
+      lineEl.style.strokeWidth = '3px';
+      // A custom property, not a direct opacity style - plain inline
+      // styles always win over a stylesheet rule regardless of
+      // specificity, which would break .edge-base.is-used's own
+      // opacity: 0 (see styles.css) for whichever edges are part of the
+      // current shortest-path tree. Routing this through a custom
+      // property instead lets .edge-base.is-used's higher-specificity
+      // class selector still override it normally. Only set at all in
+      // 'opacity' mode; the CSS fallback (var(--edge-opacity, 1)) covers
+      // the other two.
+      if (settings.edgeWeightStyle === 'opacity') {
+        lineEl.style.setProperty('--edge-opacity', weightToOpacity(w));
+      }
       gEdgesBase.appendChild(lineEl);
       edgeEls[edgeKey(edge[0], edge[1])] = lineEl;
 
@@ -577,9 +591,8 @@
       // behind it for legibility over crossing/bundled lines. Radius is
       // sized to comfortably fit the widest weight in this graph (two
       // digits, e.g. "20") without the text touching the edge of the circle.
-      // Only built at all in 'labels' mode - 'thickness' carries the
-      // weight via the edge's own width (set above) instead, and 'none'
-      // shows nothing for it at all, so neither has anything to label.
+      // Only built at all in 'labels' mode - 'opacity'/'none' show
+      // nothing for it, so neither has anything to label.
       var labelGroup = null;
       if (settings.edgeWeightStyle === 'labels') {
         var labelPt = findLabelPoint(a, b);
@@ -594,58 +607,24 @@
       edgeGeom.push({ from: edge[0], to: edge[1], lineEl: lineEl, labelEl: labelGroup });
     });
 
-    // One "route group" <g> per destination for its colored route. In
-    // 'labels'/'none' mode (showWeights), it holds exactly one <path> -
-    // the whole route as a single smooth shape (routing.js's
-    // buildDestinationPathD) - so the morph/grow animations further
-    // below (which need one element to resample/measure) keep working
-    // exactly as before. In 'thickness' mode, it instead holds one <path>
-    // PER HOP (routing.js's buildDestinationHopSegments), each
-    // independently stroke-width'd to its own edge's weight, since a
-    // single <path> can't vary its own stroke-width along its length -
-    // see syncRouteSegmentEls below, which keeps that per-hop element
-    // count in sync every render (hop count changes whenever the
-    // shortest path itself does). Segments mode deliberately skips the
-    // morph/draw-on animations - a plain opacity fade (the existing
-    // .route-path CSS transition) carries a first appearance instead, and
-    // shape changes just snap - animating a set of independently-widthed
-    // segments smoothly would need much more machinery for a secondary
-    // display mode.
+    // One "route group" <g> per destination for its colored route - always
+    // exactly one <path>, the whole route as a single smooth shape
+    // (routing.js's buildDestinationPathD), the same in every
+    // edgeWeightStyle mode - so the morph/grow animations further below
+    // (which need one element to resample/measure) always apply. `els`
+    // stays an array (rather than just `singleEl` alone) purely so
+    // setHighlighted's generic rec.els.forEach still works unchanged.
     var routeEls = {};
     NODE_ORDER.forEach(function (node) {
       if (node === START) return;
       var g = svgEl('g', { class: 'route-group', 'data-node': node });
       gPaths.appendChild(g);
-      var rec = { g: g, mode: showWeights ? 'single' : 'segments', els: [], color: NODES[node].color };
-      if (rec.mode === 'single') {
-        var el = svgEl('path', { class: 'route-path', id: 'route-' + node, fill: 'none', stroke: rec.color });
-        el.style.strokeWidth = '4px';
-        g.appendChild(el);
-        rec.els.push(el);
-        rec.singleEl = el;
-      }
-      routeEls[node] = rec;
+      var color = NODES[node].color;
+      var el = svgEl('path', { class: 'route-path', id: 'route-' + node, fill: 'none', stroke: color });
+      el.style.strokeWidth = '4px';
+      g.appendChild(el);
+      routeEls[node] = { g: g, els: [el], singleEl: el, color: color };
     });
-
-    // Adds/removes <path> children of a segments-mode route group so it
-    // has exactly one per hop, then sets each one's shape + weight-scaled
-    // width. Reusing existing elements where possible (rather than
-    // always clearing and rebuilding) keeps their is-visible/is-
-    // highlighted classes and CSS transitions intact across renders.
-    function syncRouteSegmentEls(rec, hops) {
-      while (rec.els.length < hops.length) {
-        var el = svgEl('path', { class: 'route-path', fill: 'none', stroke: rec.color });
-        rec.g.appendChild(el);
-        rec.els.push(el);
-      }
-      while (rec.els.length > hops.length) {
-        rec.els.pop().remove();
-      }
-      hops.forEach(function (hop, i) {
-        rec.els[i].setAttribute('d', hop.d);
-        rec.els[i].style.strokeWidth = weightToWidth(hop.weight) + 'px';
-      });
-    }
 
     // Node circles + labels. (Distance values live only in the edge weight
     // labels and the stats table now - no per-node distance badge.) The
@@ -731,12 +710,11 @@
       g.addEventListener('mouseenter', function () { setHighlighted(node, true); });
       g.addEventListener('mouseleave', function () { setHighlighted(node, false); });
       if (rec) {
-        // mouseenter/leave on the GROUP fire correctly for entering/
-        // leaving any of its child paths - a <g>'s hit area (and hence
-        // its "already contains the pointer" state) is the union of its
-        // children's painted geometry, exactly like an HTML element with
-        // descendants, so this works the same whether the group holds
-        // one path (weights shown) or several (segments mode).
+        // mouseenter/leave on the GROUP (rather than the single <path>
+        // directly) fires correctly for entering/leaving any of its
+        // children the same way an HTML element with descendants would -
+        // a <g>'s hit area (and hence its "already contains the pointer"
+        // state) is the union of its children's painted geometry.
         rec.g.addEventListener('mouseenter', function () { setHighlighted(node, true); });
         rec.g.addEventListener('mouseleave', function () { setHighlighted(node, false); });
       }
@@ -868,19 +846,11 @@
     function repositionGraph() {
       layoutNodesAndEdges();
       var frame = frames[currentIndex];
-      if (showWeights) {
-        var allPaths = buildAllPaths(frame);
-        Object.keys(routeEls).forEach(function (node) {
-          var d = allPaths[node];
-          if (d) routeEls[node].singleEl.setAttribute('d', d);
-        });
-      } else {
-        var allSegments = buildAllHopSegments(frame);
-        Object.keys(routeEls).forEach(function (node) {
-          var hops = allSegments[node];
-          if (hops) syncRouteSegmentEls(routeEls[node], hops);
-        });
-      }
+      var allPaths = buildAllPaths(frame);
+      Object.keys(routeEls).forEach(function (node) {
+        var d = allPaths[node];
+        if (d) routeEls[node].singleEl.setAttribute('d', d);
+      });
       if (frame.processingNode) {
         var mn = NODES[frame.processingNode];
         currentMarkerGroup.style.transform = 'translate(' + mn.x + 'px, ' + mn.y + 'px)';
@@ -1073,53 +1043,35 @@
       // internally - reusing it here keeps "which edges are solid" and
       // "which edges the colored lines run through" from ever disagreeing.)
       var edgeUsage = collectEdgeUsage(frame);
-      if (showWeights) {
-        var allPaths = buildAllPaths(frame);
-        Object.keys(routeEls).forEach(function (node) {
-          var d = allPaths[node];
-          var el = routeEls[node].singleEl;
-          if (d) {
-            var currentD = el.getAttribute('d');
-            var wasVisible = el.classList.contains('is-visible');
-            if (!wasVisible) {
-              // First appearance: draw it growing outward from S instead of
-              // just fading in over its full shape.
-              addVisibleInstant(el);
-              growPathFromStart(el, d);
-            } else if (currentD && currentD !== d) {
-              // Already on screen and its shape actually changed (relaxed to
-              // a better route, or - going Back - unrelaxed to a worse one):
-              // sweep into the new shape instead of snapping.
-              morphPathTo(el, d);
-            } else {
-              // Shape is unchanged - nothing to animate.
-              cancelMorph(el);
-              cancelGrow(el);
-              el.setAttribute('d', d);
-            }
+      var allPaths = buildAllPaths(frame);
+      Object.keys(routeEls).forEach(function (node) {
+        var d = allPaths[node];
+        var el = routeEls[node].singleEl;
+        if (d) {
+          var currentD = el.getAttribute('d');
+          var wasVisible = el.classList.contains('is-visible');
+          if (!wasVisible) {
+            // First appearance: draw it growing outward from S instead of
+            // just fading in over its full shape.
+            addVisibleInstant(el);
+            growPathFromStart(el, d);
+          } else if (currentD && currentD !== d) {
+            // Already on screen and its shape actually changed (relaxed to
+            // a better route, or - going Back - unrelaxed to a worse one):
+            // sweep into the new shape instead of snapping.
+            morphPathTo(el, d);
           } else {
+            // Shape is unchanged - nothing to animate.
             cancelMorph(el);
             cancelGrow(el);
-            el.classList.remove('is-visible');
+            el.setAttribute('d', d);
           }
-        });
-      } else {
-        // Segments mode: no morph/draw-on animation (see the routeEls
-        // build comment above) - each hop's own <path> just gets its
-        // shape/width set directly, with a plain CSS opacity fade for
-        // first appearance.
-        var allSegments = buildAllHopSegments(frame);
-        Object.keys(routeEls).forEach(function (node) {
-          var hops = allSegments[node];
-          var rec = routeEls[node];
-          if (hops) {
-            syncRouteSegmentEls(rec, hops);
-            rec.els.forEach(function (el) { el.classList.add('is-visible'); });
-          } else {
-            rec.els.forEach(function (el) { el.classList.remove('is-visible'); });
-          }
-        });
-      }
+        } else {
+          cancelMorph(el);
+          cancelGrow(el);
+          el.classList.remove('is-visible');
+        }
+      });
 
       // --- base edges: solid once part of the current shortest-path tree,
       // dashed while still untraversed -----------------------------------
