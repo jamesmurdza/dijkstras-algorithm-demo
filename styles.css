@@ -400,17 +400,11 @@ body {
   border-collapse: collapse;
   font-size: 0.84rem;
 }
-.stats-table caption {
-  text-align: left;
-  color: var(--text-muted);
-  font-size: 0.76rem;
-  margin-bottom: 6px;
-}
 .stats-table th {
   text-align: left;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
   padding: 6px 8px;
@@ -421,19 +415,38 @@ body {
   color: var(--text-primary);
 }
 .stats-table td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
-.stats-table td.route-cell { color: var(--text-secondary); white-space: nowrap; }
 
 .stats-row.is-current td { background: rgba(217, 140, 0, 0.12); font-weight: 600; }
 .stats-row.is-visited:not(.is-current) td { color: var(--text-primary); }
 
-.swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+/* Node chip: the exact same "colored circle, letter inside" look the
+   graph's own nodes use (see .node-circle/.node-label), not a separate
+   dot-plus-letter table convention. */
+.node-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
 }
+
+/* Status icon, not a word (the word still exists as this cell's
+   title/aria-label - see renderStep in app.js). Colors echo the same
+   roles used elsewhere: muted for not-reached-yet, the "visit" ink for
+   currently processing, good-green for finalized. */
+.status-cell { text-align: center; }
+.status-icon {
+  display: inline-block;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.status-icon--unvisited { color: var(--text-muted); }
+.status-icon--current { color: var(--status-select); }
+.status-icon--visited { color: var(--status-good); }
 
 /* ------------------------- settings panel ------------------------- */
 

@@ -869,26 +869,35 @@
       var tr = document.createElement('tr');
       tr.className = 'stats-row';
 
+      // Same "colored circle with the letter inside" chip as the graph's
+      // own nodes (see textColorFor above), not a separate dot-plus-text
+      // convention - one visual language for "this is node X" everywhere.
       var tdNode = document.createElement('td');
-      var swatch = document.createElement('span');
-      swatch.className = 'swatch';
-      swatch.style.background = NODES[node].color;
-      tdNode.appendChild(swatch);
-      tdNode.appendChild(document.createTextNode(node));
+      var chip = document.createElement('span');
+      chip.className = 'node-chip';
+      chip.textContent = node;
+      chip.style.background = NODES[node].color;
+      chip.style.color = textColorFor(NODES[node].color);
+      tdNode.appendChild(chip);
 
+      // Status is an icon, not a word - the full word still exists as
+      // the cell's title/aria-label (below, in renderStep) so it's not
+      // lost for screen readers or on hover.
       var tdStatus = document.createElement('td');
+      tdStatus.className = 'status-cell';
+      var statusIcon = document.createElement('span');
+      statusIcon.className = 'status-icon';
+      tdStatus.appendChild(statusIcon);
+
       var tdDist = document.createElement('td');
       tdDist.className = 'num';
-      var tdRoute = document.createElement('td');
-      tdRoute.className = 'route-cell';
 
       tr.appendChild(tdNode);
       tr.appendChild(tdStatus);
       tr.appendChild(tdDist);
-      tr.appendChild(tdRoute);
       tbody.appendChild(tr);
 
-      tableCells[node] = { row: tr, status: tdStatus, dist: tdDist, route: tdRoute };
+      tableCells[node] = { row: tr, status: tdStatus, statusIcon: statusIcon, dist: tdDist };
     });
 
     // -------------------------------------------------------------
@@ -1034,11 +1043,16 @@
         var cells = tableCells[node];
         var isCurrent = frame.processingNode === node;
         var isVisited = !!frame.visited[node];
-        var status = isCurrent ? 'Processing now' : (isVisited ? 'Visited ✓' : 'Unvisited');
-        cells.status.textContent = status;
+        var statusWord = isCurrent ? 'Processing now' : (isVisited ? 'Visited' : 'Unvisited');
+        var statusGlyph = isCurrent ? '●' : (isVisited ? '✓' : '○');
+        cells.statusIcon.textContent = statusGlyph;
+        cells.statusIcon.className = 'status-icon' +
+          (isCurrent ? ' status-icon--current' : isVisited ? ' status-icon--visited' : ' status-icon--unvisited');
+        // The word itself isn't shown - only the icon is - but it's still
+        // here for a tooltip and for screen readers via aria-label.
+        cells.status.title = statusWord;
+        cells.status.setAttribute('aria-label', statusWord);
         cells.dist.textContent = frame.dist[node] === Infinity ? '∞' : String(frame.dist[node]);
-        var path = pathTo(node, frame.dist, frame.prev);
-        cells.route.textContent = path ? formatPath(path) : '—';
         cells.row.className = 'stats-row' + (isCurrent ? ' is-current' : '') + (isVisited ? ' is-visited' : '');
       });
 
