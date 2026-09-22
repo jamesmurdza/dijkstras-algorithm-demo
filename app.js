@@ -298,6 +298,19 @@
     seek: function () {}, playToggle: function () {}, stopPlay: function () {},
   };
 
+  // Last known real pointer position, tracked once here (scenario-
+  // independent) so resyncHoverHighlight() (inside loadScenario, below)
+  // can do a fresh, explicit-coordinate elementFromPoint() hit-test
+  // instead of trusting the browser's own `:hover` bookkeeping - which
+  // (at least in Chromium, observed empirically) can go briefly stale
+  // immediately after a render forces a synchronous layout read, even
+  // though the pointer never actually moved.
+  var lastMouseX = -1, lastMouseY = -1;
+  document.addEventListener('mousemove', function (e) {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+  });
+
   btnNext.addEventListener('click', function () { app.next(); });
   btnBack.addEventListener('click', function () { app.back(); });
   btnReset.addEventListener('click', function () { app.reset(); });
@@ -484,6 +497,58 @@
       gNodes.appendChild(g);
 
       nodeEls[node] = { g: g };
+    });
+
+    // -------------------------------------------------------------
+    // Hover highlight: mousing over a node OR its own colored route
+    // lightens BOTH together (its circle and the full path, one <path>
+    // element, from S to it), so it's easy to pick a single destination's
+    // line out of a busy parallel-lane bundle. S itself has no route of
+    // its own, so hovering it only lightens the node.
+    //
+    // mouseenter/mouseleave drive this for instant response, but they're
+    // NOT trusted as the sole source of truth: a render that forces a
+    // synchronous layout read (getBoundingClientRect()/getTotalLength()
+    // in the path-animation helpers above, whenever a route grows/morphs
+    // this step) can make Chromium re-run its own hit-test under a
+    // perfectly stationary pointer and fire a stray mouseleave with no
+    // matching mouseenter after - which would otherwise leave a route
+    // stuck un-highlighted even while still being hovered, e.g. on every
+    // Play tick. resyncHoverHighlight() (called at the end of every
+    // renderStep) is the correction: it re-derives is-highlighted from
+    // the browser's own live `:hover` match, which can't desync since
+    // it's not state we're tracking ourselves - it's the actual current
+    // pointer position, recomputed on demand.
+    // -------------------------------------------------------------
+    function setHighlighted(node, on) {
+      nodeEls[node].g.classList.toggle('is-highlighted', on);
+      if (routeEls[node]) routeEls[node].classList.toggle('is-highlighted', on);
+    }
+
+    function resyncHoverHighlight() {
+      var hoveredNode = null;
+      if (lastMouseX >= 0) {
+        var el = document.elementFromPoint(lastMouseX, lastMouseY);
+        var nodeG = el && el.closest && el.closest('.node');
+        if (nodeG) {
+          hoveredNode = nodeG.getAttribute('data-node');
+        } else if (el && el.classList && el.classList.contains('route-path')) {
+          hoveredNode = el.id.replace('route-', '');
+        }
+      }
+      NODE_ORDER.forEach(function (node) { setHighlighted(node, node === hoveredNode); });
+    }
+
+    NODE_ORDER.forEach(function (node) {
+      var g = nodeEls[node].g;
+      var routeEl = routeEls[node]; // undefined for START - there's no route "to" the origin
+
+      g.addEventListener('mouseenter', function () { setHighlighted(node, true); });
+      g.addEventListener('mouseleave', function () { setHighlighted(node, false); });
+      if (routeEl) {
+        routeEl.addEventListener('mouseenter', function () { setHighlighted(node, true); });
+        routeEl.addEventListener('mouseleave', function () { setHighlighted(node, false); });
+      }
     });
 
     // Small "you are here" marker - a solid upside-down triangle pointing
@@ -785,13 +850,19 @@
       });
 
       // --- node visual states -----------------------------------------
+      // classList.toggle (not setAttribute('class', ...)) so this only
+      // ever touches the two classes it actually manages - overwriting
+      // the whole class attribute here would also wipe out is-dragging
+      // and, worse, is-highlighted (hover - see the mouseenter/leave
+      // wiring above) every single render, which during Play means the
+      // hover glow would flicker off on every 2.2s tick even while the
+      // mouse never left the node.
       NODE_ORDER.forEach(function (node) {
         var isCurrent = frame.processingNode === node;
         var isVisited = !!frame.visited[node];
-        var cls = ['node'];
-        if (isCurrent) cls.push('is-current');
-        if (isVisited) cls.push('is-visited');
-        nodeEls[node].g.setAttribute('class', cls.join(' '));
+        var g = nodeEls[node].g;
+        g.classList.toggle('is-current', isCurrent);
+        g.classList.toggle('is-visited', isVisited);
       });
 
       // --- "currently visiting" marker ---------------------------------
@@ -830,6 +901,11 @@
         cells.route.textContent = path ? formatPath(path) : '—';
         cells.row.className = 'stats-row' + (isCurrent ? ' is-current' : '') + (isVisited ? ' is-visited' : '');
       });
+
+      // Correct any hover-highlight desync this render's DOM churn may
+      // have caused (see resyncHoverHighlight's own comment above) -
+      // always last, once every other change this render makes is done.
+      resyncHoverHighlight();
     }
 
     // -------------------------------------------------------------

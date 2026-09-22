@@ -204,25 +204,35 @@ body {
 /* Colored destination routes: thin, rounded, no casing/outline.
    Invisible until the destination is first discovered; full color,
    full opacity, full weight from that point on - no separate visual
-   state for "visited" versus "tentative". */
+   state for "visited" versus "tentative". Hovering one (or its node -
+   see .node-circle below and the mouseenter/leave wiring in app.js)
+   lightens it via a plain brightness filter - works uniformly across
+   every route's own hex without picking a lighter shade per color by
+   hand - so a single line is easy to pick out of a busy parallel-lane
+   bundle. */
 .route-path {
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  cursor: pointer;
+  transition: opacity 0.3s ease, filter 0.15s ease;
 }
 .route-path.is-visible { opacity: 1; }
+.route-path.is-highlighted { filter: brightness(1.35); }
 
 /* Nodes always stay fully opaque too, regardless of visited state.
    Visited nodes keep the same thin border as every other node (the
    default paper-colored stroke below) - no extra ring is added just for
-   having been visited. */
+   having been visited. Lightens the same way its own route does (see
+   .route-path above) when either is hovered. */
 .node-circle {
   stroke: #fcfcfb;
   stroke-width: 1.5;
+  transition: filter 0.15s ease;
 }
+.node.is-highlighted .node-circle { filter: brightness(1.2); }
 .node-label {
   font-size: 11px;
   font-weight: 700;
