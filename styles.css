@@ -494,8 +494,8 @@ body {
   flex: 0 0 auto;
   gap: 2px;
   margin: 10px 12px;
-  padding: 3px;
-  border-radius: 10px;
+  padding: 2px;
+  border-radius: 9px;
   background: var(--surface-2);
 }
 .sidebar-tab {
@@ -503,9 +503,9 @@ body {
   font: inherit;
   font-size: 1rem;
   font-weight: 700;
-  padding: 7px 6px;
+  padding: 5px 6px;
   border: none;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
