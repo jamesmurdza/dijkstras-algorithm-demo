@@ -28,9 +28,9 @@
 
       <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
         <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
-        <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
         <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode" title="Pseudocode" aria-label="Pseudocode">{}</button>
         <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
+        <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
       </div>
 
       <div class="sidebar-content">
@@ -47,20 +47,6 @@
               <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
             </table>
           </div>
-        </div>
-
-        <div id="tab-settings" class="sidebar-panel" role="tabpanel">
-          <p class="settings-heading">Display settings</p>
-          <label class="settings-row">
-            <input id="setting-vertex-labels" type="checkbox" checked />
-            <span>Show vertex labels</span>
-          </label>
-          <label class="settings-row">
-            <input id="setting-edge-weights" type="checkbox" checked />
-            <span>Show edge weights</span>
-          </label>
-          <p class="settings-note">Both on by default. With edge weights off, each
-            edge's thickness stands in for its weight instead.</p>
         </div>
 
         <div id="tab-pseudocode" class="sidebar-panel" role="tabpanel">
@@ -116,6 +102,20 @@
           <p>Once every node has been visited, every distance is
             guaranteed correct, and retracing each node's recorded
             predecessor back to the start gives its shortest path.</p>
+        </div>
+
+        <div id="tab-settings" class="sidebar-panel" role="tabpanel">
+          <p class="settings-heading">Display settings</p>
+          <label class="settings-row">
+            <input id="setting-vertex-labels" type="checkbox" checked />
+            <span>Show vertex labels</span>
+          </label>
+          <label class="settings-row">
+            <input id="setting-edge-weights" type="checkbox" checked />
+            <span>Show edge weights</span>
+          </label>
+          <p class="settings-note">Both on by default. With edge weights off, each
+            edge's thickness stands in for its weight instead.</p>
         </div>
       </div>
 
