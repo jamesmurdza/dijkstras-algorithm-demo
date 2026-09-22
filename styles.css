@@ -339,9 +339,12 @@ body {
 
 /* A thin paper-colored border (matching the node circles' own stroke)
    keeps the triangle visually distinct from whatever color the node
-   underneath happens to be. */
+   underneath happens to be. Fill is the same dark gray (not black, and a
+   fixed literal rather than var(--text-primary)/var(--status-select)) as
+   the visited-node stroke above - the canvas stays light-themed always,
+   same reasoning as that rule. */
 .current-chevron {
-  fill: var(--status-select);
+  fill: #555555;
   stroke: #fcfcfb;
   stroke-width: 1;
   stroke-linejoin: round;
@@ -373,8 +376,10 @@ body {
 .distance-bubble.is-visible {
   opacity: 1;
 }
+/* Same fixed dark gray as .current-chevron above (not black, not a theme
+   var) - the canvas stays light-themed always regardless of app theme. */
 .distance-bubble-rect {
-  fill: var(--text-primary);
+  fill: #555555;
   stroke: #fcfcfb;
   stroke-width: 1;
 }
