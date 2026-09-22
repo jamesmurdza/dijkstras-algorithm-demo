@@ -44,21 +44,38 @@ var NODES = {
 };
 
 // Undirected weighted edges: [nodeA, nodeB, weight]
+//
+// Weights read as hours on a hiking trail (a short 1hr leg between
+// viewpoints, a long 6-7hr slog) rather than the much larger numbers an
+// earlier "commute" framing used - chosen to keep every visit order, every
+// relax outcome (discovered/improved/no-change), and every final
+// shortest-path tree EXACTLY identical to that original weight set, just
+// smaller. (Not a uniform rescale - the smallest original edge was already
+// 1, which a uniform shrink can't go below - so these were chosen by
+// solving for the same set of ">"/"<"/"=" relationships the algorithm
+// actually depends on, then verified by re-running computeFrames() and
+// diffing the full visit order + relaxation trace against the original.
+// See test/run-tests.js, which pins the resulting distances/milestones.)
+// NOTE: NODES' x/y above were laid out (tools/generate-layout.js) against
+// the OLD weights, whose springs favor longer edges for heavier weights;
+// re-running that tool against these would likely shuffle the layout, so
+// it hasn't been - the relative heavy/light ordering is still similar
+// enough that the existing layout still reads sensibly.
 var EDGES = [
-  ['S', 'A', 10],
-  ['S', 'B', 2],
-  ['S', 'C', 20],
+  ['S', 'A', 3],
+  ['S', 'B', 1],
+  ['S', 'C', 6],
   ['B', 'A', 1],
-  ['B', 'D', 10],
-  ['B', 'E', 13],
-  ['A', 'C', 2],
-  ['A', 'F', 10],
-  ['C', 'F', 2],
-  ['C', 'G', 9],
-  ['F', 'H', 3],
-  ['D', 'G', 2],
-  ['G', 'H', 4],
-  ['E', 'H', 8],
+  ['B', 'D', 5],
+  ['B', 'E', 7],
+  ['A', 'C', 1],
+  ['A', 'F', 3],
+  ['C', 'F', 1],
+  ['C', 'G', 4],
+  ['F', 'H', 1],
+  ['D', 'G', 1],
+  ['G', 'H', 2],
+  ['E', 'H', 4],
 ];
 
 var START_NODE = 'S';

@@ -34,7 +34,7 @@ var finalFrame = frames[frames.length - 1];
 // 1. Final distances must match the mathematically correct shortest
 //    distances for every node.
 // -----------------------------------------------------------------
-var expectedFinal = { S: 0, B: 2, A: 3, C: 5, F: 7, H: 10, D: 12, G: 14, E: 15 };
+var expectedFinal = { S: 0, B: 1, A: 2, C: 3, F: 4, H: 5, D: 6, G: 7, E: 8 };
 Object.keys(expectedFinal).forEach(function (node) {
   assertEqual(finalFrame.dist[node], expectedFinal[node], 'final distance of ' + node);
 });
@@ -103,13 +103,13 @@ function findRelax(fromTo, reason, newDist) {
 }
 
 var milestones = [
-  ['S->A', 'discovered', 10, 'A first discovered at 10 via S'],
-  ['S->C', 'discovered', 20, 'C first discovered at 20 via S'],
-  ['B->A', 'improved', 3, 'A improved to 3 via S->B->A'],
-  ['A->C', 'improved', 5, 'C improved to 5 via S->B->A->C'],
-  ['A->F', 'discovered', 13, 'F first discovered at 13 via S->B->A->F'],
-  ['C->F', 'improved', 7, 'F improved to 7 via S->B->A->C->F'],
-  ['F->H', 'discovered', 10, 'H discovered at 10 via F'],
+  ['S->A', 'discovered', 3, 'A first discovered at 3 via S'],
+  ['S->C', 'discovered', 6, 'C first discovered at 6 via S'],
+  ['B->A', 'improved', 2, 'A improved to 2 via S->B->A'],
+  ['A->C', 'improved', 3, 'C improved to 3 via S->B->A->C'],
+  ['A->F', 'discovered', 5, 'F first discovered at 5 via S->B->A->F'],
+  ['C->F', 'improved', 4, 'F improved to 4 via S->B->A->C->F'],
+  ['F->H', 'discovered', 5, 'H discovered at 5 via F'],
 ];
 
 var lastIndex = -1;
@@ -132,7 +132,7 @@ assertEqual(finalFrame.prev.H, 'F', "H's final predecessor should be F");
 //    the 'improved' frame for A (B->A), the path shown for A must no
 //    longer include the old S->A edge.
 // -----------------------------------------------------------------
-var improvedAIdx = findRelax('B->A', 'improved', 3);
+var improvedAIdx = findRelax('B->A', 'improved', 2);
 var frameAfterImprove = frames[improvedAIdx];
 var aPath = dijkstra.pathTo('A', frameAfterImprove.dist, frameAfterImprove.prev);
 assertEqual(aPath.join(','), 'S,B,A', "A's path immediately after improvement should be S,B,A");
