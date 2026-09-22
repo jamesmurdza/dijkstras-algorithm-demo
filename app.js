@@ -231,7 +231,7 @@
   // but never quite reaches - pulling harder keeps giving less, like an
   // actual rubber band, instead of a dragged node following the pointer
   // 1:1 forever.
-  var RUBBER_BAND_LIMIT = 34;
+  var RUBBER_BAND_LIMIT = 70;
   function rubberBand(dx, dy) {
     var dist = Math.hypot(dx, dy);
     if (dist < 0.001) return { x: 0, y: 0 };
