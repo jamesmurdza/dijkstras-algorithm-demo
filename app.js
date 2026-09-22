@@ -1151,7 +1151,13 @@
         var isCurrent = frame.processingNode === node;
         var isVisited = !!frame.visited[node];
         var statusWord = isCurrent ? 'Processing now' : (isVisited ? 'Visited' : 'Unvisited');
-        var statusGlyph = isCurrent ? '●' : (isVisited ? '✓' : '○');
+        // A half-filled circle (not a plain filled one) for "current" - a
+        // solid ● reads too similarly to the hollow ○ used for "unvisited"
+        // at this small a size (same shape, easy to mistake one fill level
+        // for another at a glance); ◐ is unambiguous at any size, and still
+        // reads as "partway between ○ and done" rather than a shape with no
+        // relation to the other two.
+        var statusGlyph = isCurrent ? '◐' : (isVisited ? '✓' : '○');
         cells.statusIcon.textContent = statusGlyph;
         cells.statusIcon.className = 'status-icon' +
           (isCurrent ? ' status-icon--current' : isVisited ? ' status-icon--visited' : ' status-icon--unvisited');
