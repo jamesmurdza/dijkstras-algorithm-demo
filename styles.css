@@ -578,14 +578,16 @@ body {
 .pc-def { color: var(--text-primary); font-weight: 700; }
 
 /* How-it-works tab: plain prose, same rhythm the old live step
-   description used. */
+   description used, followed by the pseudocode block above (.pseudocode's
+   own margin: 0 lets this last paragraph's margin-bottom be the only
+   thing setting that gap, so it reads as "one more paragraph" rather than
+   a separate section). */
 #tab-description p {
   margin: 0 0 12px;
   line-height: 1.55;
   font-size: 0.88rem;
   color: var(--text-primary);
 }
-#tab-description p:last-child { margin-bottom: 0; }
 
 .table-wrap { overflow-x: auto; }
 .stats-table {

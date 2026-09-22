@@ -255,7 +255,7 @@
   var btnNext = document.getElementById('btn-next');
   var scenarioSelect = document.getElementById('scenario-select');
 
-  // The sidebar (table / settings / pseudocode / how-it-works) is docked
+  // The sidebar (table / how-it-works+pseudocode / settings) is docked
   // to the LEFT of the canvas. It's collapsed to just its own header bar
   // (title + toggle) by default - collapsing/expanding toggles a CSS
   // class rather than the `hidden` attribute, since the toggle button

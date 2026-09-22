@@ -15,10 +15,11 @@
        hides the tabs/content below it, rather than removing the whole
        sidebar from the DOM's visible flow - that's what keeps the toggle
        itself reachable either way. The canvas shrinks to make room
-       whenever it's expanded. Its four tabs (icons only - see their
+       whenever it's expanded. Its three tabs (icons only - see their
        aria-label/title for what each one is) are: the live distances
-       table, display settings, the algorithm's pseudocode, and a plain-
-       English walkthrough of how it works. -->
+       table, a plain-English walkthrough of how the algorithm works
+       (with its pseudocode after the prose, same tab - not split out
+       into a tab of its own), and display settings. -->
   <div class="app">
     <aside id="sidebar" class="sidebar is-collapsed" aria-label="Details">
       <div class="sidebar-header">
@@ -28,7 +29,6 @@
 
       <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
         <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
-        <button id="tab-btn-pseudocode" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-pseudocode" title="Pseudocode" aria-label="Pseudocode">{}</button>
         <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
         <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
       </div>
@@ -49,7 +49,25 @@
           </div>
         </div>
 
-        <div id="tab-pseudocode" class="sidebar-panel" role="tabpanel">
+        <div id="tab-description" class="sidebar-panel" role="tabpanel">
+          <p>Dijkstra's algorithm finds the shortest distance from a single
+            start node to every other node in a weighted graph.</p>
+          <p>It starts by assuming every node is unreachable (distance
+            infinity) except the start node, which is distance zero.
+            Every node begins unvisited.</p>
+          <p>Then it repeats one step until every node has been visited:
+            among the unvisited nodes, pick the one with the smallest
+            known distance, and mark it visited. That distance is now
+            final - it can never improve later.</p>
+          <p>For every neighbor of the node just visited, check whether
+            going through it gives a shorter path than what that
+            neighbor currently has on record ("relaxing" the edge). If
+            so, update the neighbor's distance and remember this node
+            as the way to reach it.</p>
+          <p>Once every node has been visited, every distance is
+            guaranteed correct, and retracing each node's recorded
+            predecessor back to the start gives its shortest path.</p>
+
           <!-- Line numbers come from a CSS counter (one increment per
                .pc-line, see styles.css) rather than being hand-typed here,
                so they can't drift out of sync if a line ever gets added or
@@ -82,26 +100,6 @@
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All distances are now correct</span></span></span
 ><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">return</span> distances</span></span
 ></code></pre>
-        </div>
-
-        <div id="tab-description" class="sidebar-panel" role="tabpanel">
-          <p>Dijkstra's algorithm finds the shortest distance from a single
-            start node to every other node in a weighted graph.</p>
-          <p>It starts by assuming every node is unreachable (distance
-            infinity) except the start node, which is distance zero.
-            Every node begins unvisited.</p>
-          <p>Then it repeats one step until every node has been visited:
-            among the unvisited nodes, pick the one with the smallest
-            known distance, and mark it visited. That distance is now
-            final - it can never improve later.</p>
-          <p>For every neighbor of the node just visited, check whether
-            going through it gives a shorter path than what that
-            neighbor currently has on record ("relaxing" the edge). If
-            so, update the neighbor's distance and remember this node
-            as the way to reach it.</p>
-          <p>Once every node has been visited, every distance is
-            guaranteed correct, and retracing each node's recorded
-            predecessor back to the start gives its shortest path.</p>
         </div>
 
         <div id="tab-settings" class="sidebar-panel" role="tabpanel">
