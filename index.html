@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dijkstra's Algorithm — Interactive Subway-Map Visualization</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top-level row: a collapsible sidebar (docked LEFT, full page height -
+       no header strip above it) plus everything else stacked in a column
+       to its right (scenario picker, canvas, toolbar). The sidebar's own
+       header (title + collapse toggle) is always visible; collapsing it
+       shrinks the sidebar down to just that header bar (a slim rail) and
+       hides the tabs/content below it, rather than removing the whole
+       sidebar from the DOM's visible flow - that's what keeps the toggle
+       itself reachable either way. The canvas shrinks to make room
+       whenever it's expanded. Its three tabs (icons only - see their
+       aria-label/title for what each one is) are: the live distances
+       table, a plain-English walkthrough of how the algorithm works
+       (with its pseudocode after the prose, same tab - not split out
+       into a tab of its own), and display settings. -->
+  <div class="app">
+    <aside id="sidebar" class="sidebar is-collapsed" aria-label="Details">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">Dijkstra's Algorithm Visualization</h1>
+        <button id="btn-toggle-sidebar" class="btn btn--icon" type="button" aria-pressed="false" title="Expand the sidebar" aria-label="Expand the sidebar">◧</button>
+      </div>
+
+      <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
+        <button id="tab-btn-description" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="tab-description" title="How it works" aria-label="How it works">ℹ</button>
+        <button id="tab-btn-table" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-table" title="Table" aria-label="Table">▦</button>
+        <button id="tab-btn-settings" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" title="Settings" aria-label="Settings">⚙</button>
+      </div>
+
+      <div class="sidebar-content">
+        <div id="tab-description" class="sidebar-panel is-active" role="tabpanel">
+          <p>Dijkstra's algorithm finds the shortest distance from a single
+            start node to every other node in a weighted graph.</p>
+          <p>It starts by assuming every node is unreachable (distance
+            infinity) except the start node, which is distance zero.
+            Every node begins unvisited.</p>
+          <p>Then it repeats one step until every node has been visited:
+            among the unvisited nodes, pick the one with the smallest
+            known distance, and mark it visited. That distance is now
+            final - it can never improve later.</p>
+          <p>For every neighbor of the node just visited, check whether
+            going through it gives a shorter path than what that
+            neighbor currently has on record ("relaxing" the edge). If
+            so, update the neighbor's distance and remember this node
+            as the way to reach it.</p>
+          <p>Once every node has been visited, every distance is
+            guaranteed correct, and retracing each node's recorded
+            predecessor back to the start gives its shortest path.</p>
+
+          <!-- Line numbers come from a CSS counter (one increment per
+               .pc-line, see styles.css) rather than being hand-typed here,
+               so they can't drift out of sync if a line ever gets added or
+               removed. Syntax coloring is hand-marked-up (a handful of
+               .pc-* token classes) rather than run through a highlighter
+               library, matching the rest of this app's no-build-step,
+               no-dependencies approach - it's ~20 fixed lines of pseudocode,
+               not a general-purpose code editor. -->
+          <pre class="pseudocode"><code class="pc"
+><span class="pc-line"><span class="pc-line-code"><span class="pc-com"># Find the shortest (weighted) paths from start to all other nodes</span></span></span
+><span class="pc-line"><span class="pc-line-code"><span class="pc-kw">def</span> <span class="pc-def">dijkstra</span>(nodes: <span class="pc-builtin">list</span>[<span class="pc-builtin">Node</span>], start: <span class="pc-builtin">Node</span>) -&gt; <span class="pc-builtin">dict</span>[<span class="pc-builtin">Node</span>, <span class="pc-builtin">float</span>]:</span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All nodes, and our distance estimates</span></span></span
+><span class="pc-line"><span class="pc-line-code">    distances = {node: <span class="pc-builtin">float</span>(<span class="pc-str">"inf"</span>) <span class="pc-kw">for</span> node <span class="pc-kw">in</span> nodes}</span></span
+><span class="pc-line"><span class="pc-line-code">    distances[start] = <span class="pc-num">0</span></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># The nodes we've visited already</span></span></span
+><span class="pc-line"><span class="pc-line-code">    unvisited = <span class="pc-builtin">set</span>(nodes)</span></span
+><span class="pc-line"><span class="pc-line-code"></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">while</span> unvisited:</span></span
+><span class="pc-line"><span class="pc-line-code">        <span class="pc-com"># u is the node we're visiting</span></span></span
+><span class="pc-line"><span class="pc-line-code">        u = <span class="pc-builtin">min</span>(unvisited, key=<span class="pc-kw">lambda</span> node: distances[node])</span></span
+><span class="pc-line"><span class="pc-line-code">        unvisited.remove(u)</span></span
+><span class="pc-line"><span class="pc-line-code"></span></span
+><span class="pc-line"><span class="pc-line-code">        <span class="pc-com"># v is each neighbor of u</span></span></span
+><span class="pc-line"><span class="pc-line-code">        <span class="pc-kw">for</span> v <span class="pc-kw">in</span> u.neighbors:</span></span
+><span class="pc-line"><span class="pc-line-code">            <span class="pc-kw">if</span> v <span class="pc-kw">in</span> unvisited:</span></span
+><span class="pc-line"><span class="pc-line-code">                <span class="pc-com"># Relax the edge between u and v</span></span></span
+><span class="pc-line"><span class="pc-line-code">                new_distance = distances[u] + weight(u, v)</span></span
+><span class="pc-line"><span class="pc-line-code">                distances[v] = <span class="pc-builtin">min</span>(distances[v], new_distance)</span></span
+><span class="pc-line"><span class="pc-line-code"></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-com"># All distances are now correct</span></span></span
+><span class="pc-line"><span class="pc-line-code">    <span class="pc-kw">return</span> distances</span></span
+></code></pre>
+        </div>
+
+        <div id="tab-table" class="sidebar-panel" role="tabpanel">
+          <div class="table-wrap">
+            <table class="stats-table" id="stats-table" aria-label="Tentative distances from S">
+              <thead>
+                <tr>
+                  <th scope="col">Node</th>
+                  <th scope="col">Distance</th>
+                  <th scope="col">Shortest Path</th>
+                </tr>
+              </thead>
+              <tbody id="stats-tbody"><!-- rows injected by app.js --></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-settings" class="sidebar-panel" role="tabpanel">
+          <p class="settings-heading">Display settings</p>
+          <label class="settings-row">
+            <input id="setting-vertex-labels" type="checkbox" checked />
+            <span>Show vertex labels</span>
+          </label>
+          <label class="settings-row settings-row--select">
+            <span>Edge weights</span>
+            <select id="setting-edge-weight-style">
+              <option value="labels">Labels</option>
+              <option value="opacity">Opacity</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="settings-row">
+            <input id="setting-distance-tooltips" type="checkbox" />
+            <span>Show tentative distance tooltips</span>
+          </label>
+          <p class="settings-note">Vertex labels are on by default. Edge
+            weights default to Labels; Opacity fades each edge out in
+            proportion to its own weight instead (heavier = more
+            translucent), and None shows neither. Distance tooltips - a
+            small readout of a node's current tentative distance when you
+            hover it or its route - are off by default.</p>
+        </div>
+      </div>
+
+      <!-- Drag-to-resize the sidebar's width. Purely a mouse/touch
+           affordance layered over the existing right border - see
+           app.js for the drag logic and styles.css for why this adds
+           no visible change of its own (no width/color, just a wider
+           invisible hit target centered on that same border). -->
+      <div id="sidebar-resize-handle" class="sidebar-resize-handle" aria-hidden="true"></div>
+    </aside>
+
+    <!-- Everything that isn't the sidebar: the scenario picker, the
+         canvas, and the toolbar, stacked in a column that fills
+         whatever width is left to the sidebar's right. -->
+    <div class="content-column">
+      <header class="app-header">
+        <div class="scenario-picker">
+          <select id="scenario-select" aria-label="Graph scenario"></select>
+        </div>
+      </header>
+
+      <div class="canvas-area" aria-label="Graph visualization">
+        <div id="graph-container" class="graph-container">
+          <!-- SVG graph is built and updated entirely by app.js -->
+        </div>
+      </div>
+
+      <!-- Toolbar: the only other piece of UI besides the canvas. A long
+           slider (with its own tick marks, one per step) plus Previous/
+           Next triangles. -->
+      <footer class="toolbar" role="group" aria-label="Step controls">
+        <div class="slider-wrap">
+          <input id="step-slider" class="slider" type="range" min="0" max="0" step="1" value="0"
+                 aria-label="Algorithm step" />
+          <div id="slider-ticks" class="slider-ticks" aria-hidden="true"><!-- tick marks injected by app.js --></div>
+        </div>
+        <button id="btn-back" class="btn btn--icon" type="button" title="Previous step" aria-label="Previous step">◀</button>
+        <button id="btn-next" class="btn btn--icon" type="button" title="Next step" aria-label="Next step">▶</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="dijkstra.js"></script>
+  <script src="scenarios.js"></script>
+  <script src="routing.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,887 @@
+/*
+ * styles.css
+ * ----------
+ * Visual language: a "subway map" — thin rounded lines, distinct flat
+ * node colors, subtle gray background edges, no heavy outlines/casings
+ * around colored routes.
+ *
+ * Layout: one large canvas (the graph) filling the viewport, with a thin
+ * toolbar docked at the bottom (a tick-marked slider plus Back/Next) and
+ * a sidebar docked to the LEFT of the canvas (a real flex sibling, not
+ * an overlay - the canvas shrinks to make room for it when expanded).
+ * The sidebar carries the app's own title in its own header bar (see
+ * .sidebar-header), which - along with the collapse/expand toggle next
+ * to it - stays visible even while the sidebar is collapsed down to just
+ * that header; its own tab strip (Table / Settings / Pseudocode / How it
+ * works, icons only) switches which panel shows underneath while it's
+ * expanded. On narrow/mobile viewports there isn't room to share the row
+ * with the canvas, so the sidebar switches to a full-height overlay
+ * sliding in from the left instead (see the small-screens media query at
+ * the bottom of this file) - still collapsible down to just its header
+ * bar the same way.
+ *
+ * Color roles use CSS custom properties (light values here, dark values
+ * under prefers-color-scheme) so the same rules apply in both themes -
+ * only the tokens change. Node/route colors themselves stay identical in
+ * both themes since they are drawn as bright flat fills on a light SVG
+ * canvas that does not switch to a dark surface (a subway map's own
+ * "paper" stays light so its line colors keep their standard reading).
+ * The header and toolbar chrome share that exact same fixed color (the
+ * --canvas token) rather than the theme-aware --page background the rest
+ * of the document sits on, so the title/toolbar bars and the canvas
+ * between them read as one continuous surface with no visible seam.
+ */
+
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --surface-2: #f2f1ee;
+  --page: #f9f9f7;
+  /* The graph canvas's own fixed "paper" color - deliberately the same
+     literal value in both themes (see the note on .canvas-area below) -
+     shared with the header and toolbar too so the whole app reads as one
+     continuous surface with no visible seam between the title/toolbar
+     chrome and the canvas between them. */
+  --canvas: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --border: rgba(11, 11, 11, 0.1);
+  --edge-gray: #cfcec3;
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+  --status-good: #0ca30c;
+  --status-select: #3a3a38;
+  /* Pseudocode syntax-highlight tokens (see .pc-* below). Keywords/strings/
+     comments reuse existing tokens above (--accent, --status-good,
+     --text-muted) rather than inventing near-duplicate hues; these two are
+     genuinely new roles with no existing equivalent. */
+  --syn-number: #9a6200;
+  --syn-builtin: #7c3aed;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8d86;
+    --border: rgba(255, 255, 255, 0.12);
+    --edge-gray: #4a4a47;
+    --accent: #3987e5;
+    --accent-ink: #ffffff;
+    --status-good: #29c229;
+    --status-select: #d8d8d4;
+    --syn-number: #e0a030;
+    --syn-builtin: #b794f6;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--text-primary);
+  overflow: hidden; /* the app is exactly one viewport: canvas + toolbar */
+}
+
+/* Top-level row: the sidebar (see below) plus .content-column, so the
+   sidebar spans the full page height with nothing above or below it -
+   .content-column carries the header/canvas/toolbar stack that used to
+   span the full page width, now confined to whatever's left to the
+   sidebar's right. position: relative anchors the sidebar's small-screen
+   overlay mode (see the max-width: 640px query far below), which needs a
+   full-height box to slide up against. */
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: row;
+  position: relative;
+}
+
+/* Everything that isn't the sidebar, stacked in a column: the scenario
+   picker up top, the canvas filling whatever's left, the toolbar pinned
+   to the bottom - all confined to the sidebar's right rather than
+   spanning the full page width. */
+.content-column {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Just the scenario picker now - the app's own title moved into the
+   sidebar's own header (see .sidebar-header below). */
+.app-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 16px;
+  background: var(--canvas);
+}
+
+/* Scenario picker - top right of the header. A plain, flat <select> (no
+   boxed panel/border-heavy styling) so it reads as part of the same
+   quiet chrome as the toolbar's icon buttons rather than a separate
+   widget bolted on. No visible text label - the select's own current
+   value (a scenario name) already reads as self-explanatory, and
+   aria-label="Graph scenario" on the <select> covers screen readers. */
+/* Just the current scenario's name + a small dropdown arrow - no
+   box/border/fill "porcelain" around it at rest. The actual list of
+   scenarios is still a native <select> popup (unstyled - browsers don't
+   let you restyle that part), it only ever appears once you click it;
+   what's being stripped down here is purely the CLOSED control's own
+   chrome. */
+.scenario-picker {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  position: relative;
+}
+/* A CSS-drawn triangle (border trick) rather than a Unicode '▾' glyph -
+   that glyph's actual rendered size varies wildly by font/OS (on some
+   systems it draws as little more than a speck), where this always
+   renders as the same crisp 8x5px triangle everywhere. */
+.scenario-picker::after {
+  content: '';
+  position: absolute;
+  right: 9px;
+  top: calc(50% - 2px);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-secondary);
+  pointer-events: none; /* clicks pass through to the <select> underneath */
+}
+.scenario-picker select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 20px 7px 7px;
+  cursor: pointer;
+}
+.scenario-picker select:hover {
+  background: var(--surface-2);
+}
+.scenario-picker select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .app-header { flex-wrap: wrap; row-gap: 6px; }
+}
+
+/* ------------------------- canvas ------------------------- */
+
+.canvas-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0; /* same flex-shrink gotcha as .sidebar below - without this it refuses to shrink below its content's size */
+  position: relative;
+  background: var(--canvas);
+}
+
+.graph-container {
+  position: absolute;
+  inset: 0;
+}
+.graph-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  color-scheme: light;
+}
+
+/* Graph edges default to dashed gray ("not part of the current
+   shortest-path tree"); app.js adds .is-used for whichever edges this
+   frame's paths actually run through.
+   .is-used hides the gray line entirely rather than just switching it to
+   solid: the base line sits exactly on the edge's true centerline, but
+   colored lanes are spaced OUT to either side of it (so parallel routes
+   don't overlap), and when a bundle has an even number of lanes none of
+   them land back on that exact centerline - leaving a sliver of gray
+   visible in the gap between the two middle lanes. The colored lanes
+   already fully communicate "this edge is used"; the gray line
+   underneath is redundant once that's true, so removing it (instead of
+   just de-dashing it) avoids the peek-through regardless of lane count. */
+.edge-base {
+  stroke: var(--edge-gray);
+  stroke-linecap: round;
+  stroke-dasharray: 6 5;
+  /* --edge-opacity is a custom property (not a plain opacity style) set
+     per-element in app.js, only in 'opacity' mode - see the edgeGeom
+     build comment there for why it has to go through a custom property
+     rather than a direct inline opacity: a plain inline style would
+     always beat .edge-base.is-used below regardless of specificity,
+     which would wrongly keep a heavy-but-used edge's gray line peeking
+     through. Routed through a var() instead, .is-used's own higher-
+     specificity class selector still wins normally. */
+  opacity: var(--edge-opacity, 1);
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+/* stroke-width is set per-element in app.js (inline style, so it wins
+   over this rule regardless of specificity) - a fixed 3px always now
+   (see settings.edgeWeightStyle in app.js - 'opacity' mode varies
+   translucency instead of width, unlike the old 'thickness' mode). */
+.edge-base.is-used {
+  opacity: 0;
+}
+
+/* A soft off-white, not the exact canvas color (--surface-1) - the
+   bubble has no border, so it needs to read as its own shape against
+   blank canvas, not just where it happens to overlap a colored line. */
+.edge-weight circle {
+  fill: var(--surface-2);
+}
+.edge-weight text {
+  fill: #898781;
+  font-size: 8.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colored destination routes: thin, rounded, no casing/outline.
+   Invisible until the destination is first discovered; full color,
+   full opacity, full weight from that point on - no separate visual
+   state for "visited" versus "tentative". Hovering one (or its node -
+   see .node-circle below and the mouseenter/leave wiring in app.js)
+   lightens it via a plain brightness filter - works uniformly across
+   every route's own hex without picking a lighter shade per color by
+   hand - so a single line is easy to pick out of a busy parallel-lane
+   bundle. */
+.route-path {
+  /* stroke-width set per-element in app.js - see the .edge-base comment
+     above, same reasoning applies here (a fixed 4px, or weight-scaled). */
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.3s ease, filter 0.15s ease, stroke-width 0.2s ease;
+}
+.route-path.is-visible { opacity: 1; }
+.route-path.is-highlighted { filter: brightness(1.35); }
+
+/* Nodes always stay fully opaque too, regardless of visited state.
+   The border starts as the same paper color as the canvas (so it reads
+   as a thin gap around the node rather than an outline) and switches to
+   dark gray once the algorithm finalizes that node (frame.visited),
+   marking it as done at a glance without needing to read the table. The
+   fill already lightens on hover via the brightness filter below (same
+   as its own route - see .route-path above); the visited border gets
+   its own explicit lighter step too, since brightness() alone barely
+   moves a color this dark. */
+.node-circle {
+  stroke: #fcfcfb;
+  stroke-width: 1.5;
+  transition: filter 0.15s ease, stroke 0.3s ease;
+}
+.node.is-visited .node-circle { stroke: #555555; } /* dark gray, not black - fixed literal (not var(--text-primary)) since the canvas stays light-themed always, same as the paper-white default above */
+.node.is-visited.is-highlighted .node-circle { stroke: #6a6a6a; } /* only a slight step up from the base gray above */
+.node.is-highlighted .node-circle { filter: brightness(1.2); }
+.node-label {
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* Draggable "toy" behavior: app.js's makeDraggable drives the actual
+   motion (and every connected edge/route line following along) by
+   mutating NODES[node].x/y and re-laying-out the graph on every pointer-
+   move/animation frame - see repositionGraph() and springNodeHome() in
+   app.js - rather than a CSS transform/transition, since plain CSS can't
+   animate SVG line endpoints or path shapes. This block is just the
+   pointer affordance: a grab cursor that becomes "grabbing" while held.
+   touch-action: none stops touchscreens from also trying to scroll/zoom
+   the page while dragging a node. */
+.node {
+  cursor: grab;
+  touch-action: none;
+}
+.node.is-dragging {
+  cursor: grabbing;
+}
+
+/* "You are here" marker: a single shared element (see currentMarkerGroup
+   in app.js) that app.js slides to whichever node is currently being
+   visited/relaxed, straight from the frame's `processingNode`. Hidden by
+   default; the outer group owns position (a smooth glide from node to
+   node via `transition: transform`) and the inner triangle owns the
+   small vertical bounce, since one element can't both transition to an
+   arbitrary position AND run a `transform`-based keyframe animation at
+   the same time. `.is-jumping` is a transition-free escape hatch app.js
+   uses for the marker's very first appearance, so it parks directly on
+   the node instead of visibly flying in from wherever it last was. */
+.current-marker {
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.45s ease, opacity 0.25s ease;
+}
+.current-marker.is-visible {
+  opacity: 1;
+}
+.current-marker.is-jumping {
+  transition: none;
+}
+
+/* A thin paper-colored border (matching the node circles' own stroke)
+   keeps the triangle visually distinct from whatever color the node
+   underneath happens to be. Fill is the same dark gray (not black, and a
+   fixed literal rather than var(--text-primary)/var(--status-select)) as
+   the visited-node stroke above - the canvas stays light-themed always,
+   same reasoning as that rule. */
+.current-chevron {
+  fill: #555555;
+  stroke: #fcfcfb;
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.current-marker.is-visible .current-chevron {
+  animation: chevron-bounce 1s ease-in-out infinite;
+}
+
+@keyframes chevron-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .current-marker { transition: opacity 0.25s ease; }
+  .current-chevron { animation: none; }
+}
+
+/* Hover distance readout - a small pill anchored to a node's own position
+   (never the cursor) showing that node's current tentative distance. Same
+   single-shared-element pattern as .current-marker above (one element,
+   repositioned/relabeled rather than one per node), but no transition -
+   it snaps straight to wherever it's shown rather than fading/gliding,
+   so it never lags behind a fast-moving hover. */
+.distance-bubble {
+  opacity: 0;
+  pointer-events: none;
+}
+.distance-bubble.is-visible {
+  opacity: 1;
+}
+/* Same fixed dark gray as .current-chevron above (not black, not a theme
+   var) - the canvas stays light-themed always regardless of app theme. */
+.distance-bubble-rect {
+  fill: #555555;
+  stroke: #fcfcfb;
+  stroke-width: 1;
+}
+.distance-bubble-text {
+  fill: #fcfcfb;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------- sidebar (Table / Settings / Pseudocode / How it works) ------------------------- */
+
+.sidebar {
+  position: relative; /* anchors .sidebar-resize-handle below */
+  flex: 0 0 360px;
+  /* Flex items default to min-width: auto, which refuses to shrink below
+     their CONTENT's own min-content size (here, mostly the table/
+     pseudocode content in .sidebar-content) - without this override that
+     silently fights the resize handle's own MIN_SIDEBAR_WIDTH clamp
+     (app.js), stopping it well short of that intended floor. */
+  min-width: 0;
+  max-width: 40vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: flex-basis 0.2s ease, max-width 0.2s ease;
+}
+/* Switched off for the duration of an actual resize drag (see app.js) -
+   a live drag should track the cursor exactly, not lag behind it easing
+   toward wherever the cursor was a moment ago; the eased transition is
+   only for the collapse/expand toggle's own discrete jump. */
+.sidebar.is-resizing {
+  transition: none;
+}
+
+/* Drag-to-resize hit target, layered directly over the existing 1px
+   border-right above rather than drawn as its own visible element - no
+   width/color/hover state of its own, so the border looks exactly the
+   same as it always did; only the cursor and the drag behavior (see
+   app.js) are new. Entirely inside the sidebar's own box (not
+   overhanging past its right edge) since .sidebar clips overflow. */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.sidebar.is-collapsed .sidebar-resize-handle {
+  display: none; /* nothing meaningful to resize once shrunk to the collapsed rail */
+}
+
+/* Collapsed = shrunk down to just its own header bar (title hidden,
+   tabs/content hidden) - never the `hidden` attribute, since the toggle
+   that re-expands it lives IN that header and has to stay reachable. */
+.sidebar.is-collapsed {
+  flex-basis: 44px;
+  max-width: 44px;
+}
+.sidebar.is-collapsed .sidebar-tabs,
+.sidebar.is-collapsed .sidebar-content {
+  display: none;
+}
+
+/* Always visible regardless of collapsed state - the app's own title
+   plus the button that collapses/expands everything below it. */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 52px;
+  padding: 8px 8px 8px 14px;
+}
+.sidebar.is-collapsed .sidebar-header {
+  justify-content: center;
+  padding-left: 8px;
+}
+.sidebar-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar.is-collapsed .sidebar-title { display: none; }
+
+/* Tab strip stays fixed at the sidebar's own top; only .sidebar-content
+   below it scrolls, so the tabs are always reachable regardless of how
+   long the active panel's content runs (the pseudocode block especially).
+   Styled as a segmented control (one rounded pill-shaped track, the
+   selected segment raised on its own matching-radius chip) rather than an
+   underlined tab strip - reads more clearly as "pick one of four views",
+   the same idiom iOS/macOS use for this exact kind of view switcher. */
+.sidebar-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin: 10px 12px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.sidebar-tab {
+  flex: 1 1 0;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.sidebar-tab:hover { color: var(--text-primary); }
+.sidebar-tab[aria-selected="true"] {
+  background: var(--surface-1);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(11, 11, 11, 0.16);
+}
+
+.sidebar-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.sidebar-panel { display: none; }
+.sidebar-panel.is-active { display: block; }
+
+/* Pseudocode tab: a plain, borderless code block - monospace and small.
+   pre-wrap (not plain pre) because the sidebar is nowhere near wide
+   enough for this code's longest lines to fit unwrapped - meaningful
+   whitespace runs (indentation) are still preserved exactly, individual
+   lines just wrap instead of ever getting silently clipped off the edge
+   or requiring horizontal scrolling to read. */
+.pseudocode {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+/* One flex row per source line: a numbered gutter (an auto-incrementing
+   CSS counter, not hand-typed numbers - see the HTML comment above the
+   markup) plus the code itself. Whitespace/wrapping is scoped to just the
+   code half (.pc-line-code) rather than the whole block like the old
+   plain pre-wrap did, so the gutter numbers can sit in their own column
+   instead of getting swept into the wrapped text. */
+.pseudocode code {
+  display: block;
+  counter-reset: pc-line;
+}
+.pc-line {
+  display: flex;
+}
+.pc-line::before {
+  counter-increment: pc-line;
+  content: counter(pc-line);
+  flex: 0 0 1.6em;
+  margin-right: 10px;
+  text-align: right;
+  color: var(--text-muted);
+  user-select: none;
+}
+.pc-line-code {
+  flex: 1 1 auto;
+  min-width: 0; /* else a flex item won't actually shrink/wrap below its content width */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Syntax coloring - a handful of hand-marked-up token classes (see the
+   HTML), not a general tokenizer. Keywords/strings/comments reuse existing
+   app-wide color tokens rather than inventing near-duplicate hues; only
+   --syn-number/--syn-builtin above are new. */
+.pc-com { color: var(--text-muted); font-style: italic; }
+.pc-kw { color: var(--accent); font-weight: 600; }
+.pc-str { color: var(--status-good); }
+.pc-num { color: var(--syn-number); }
+.pc-builtin { color: var(--syn-builtin); }
+.pc-def { color: var(--text-primary); font-weight: 700; }
+
+/* How-it-works tab: plain prose, same rhythm the old live step
+   description used, followed by the pseudocode block above (.pseudocode's
+   own margin: 0 lets this last paragraph's margin-bottom be the only
+   thing setting that gap, so it reads as "one more paragraph" rather than
+   a separate section). */
+#tab-description p {
+  margin: 0 0 12px;
+  line-height: 1.55;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.table-wrap { overflow-x: auto; }
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+.stats-table th {
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+}
+/* Lighter gray by default ("still tentative - could yet improve"), full
+   ink once a row is finalized (.stats-row.is-visited below) - this is now
+   the ONLY thing distinguishing "certain" from "not yet" (there used to
+   also be a separate Status icon column; removed in favor of just this,
+   one less thing to visually reconcile with the Distance/Path values
+   sitting right next to it). */
+.stats-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.stats-table td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.path-cell {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.stats-row.is-current td { background: rgba(42, 120, 214, 0.12); font-weight: 600; }
+.stats-row.is-visited td { color: var(--text-primary); }
+
+/* Node chip: the exact same "colored circle, letter inside" look the
+   graph's own nodes use (see .node-circle/.node-label), not a separate
+   dot-plus-letter table convention. */
+.node-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ------------------------- settings panel ------------------------- */
+
+.settings-heading {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.settings-row input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+/* The edge-weights row is a 3-way choice (Labels/Thickness/None), not an
+   on/off toggle, so it gets a <select> instead of a checkbox - pushed to
+   the row's far end rather than sitting left of its label like a
+   checkbox does. */
+.settings-row--select {
+  justify-content: space-between;
+}
+.settings-row--select select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.settings-note {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ------------------------- toolbar ------------------------- */
+
+/* No filled surface/box or divider line above the bar - it shares the
+   canvas's exact background color (--canvas), so the two read as one
+   continuous surface with no seam, matching the header's equally plain
+   treatment above the canvas on the other side. Flat icon buttons with
+   no border or fill by default (see .btn below) read as controls
+   belonging to that quiet strip rather than a distinct panel of their
+   own. */
+.toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--canvas);
+  flex-wrap: wrap;
+}
+
+/* Wraps the range input together with its own tick-mark overlay (see
+   .slider-ticks below) so the marks can be positioned absolutely against
+   the exact same box the track occupies. */
+.slider-wrap {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 120px;
+  margin: 0 6px;
+  display: flex;
+  align-items: center;
+}
+
+/* Fully custom track + thumb (both a fixed, literal gray, not a theme
+   token - the toolbar sits on the always-light --canvas background
+   regardless of theme, same reasoning as the node circles' own fixed
+   stroke colors elsewhere in this file, e.g. the #555555 used for
+   .is-visited below) - a plain gray line with a gray circle riding on
+   it, no separate "filled portion" color. */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 1.5px;
+  background: #757570;
+  border-radius: 999px;
+}
+.slider::-moz-range-track {
+  height: 1.5px;
+  background: #757570;
+  border-radius: 999px;
+}
+/* A ring, not a solid dot - white hollow center inside a gray border
+   (box-sizing: border-box up top means the border eats into the fixed
+   14px box rather than growing past it, so this stays the exact same
+   footprint the solid dot used to be). */
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px; /* centers the 14px thumb on the 1.5px track */
+  border-radius: 50%;
+  background: #fcfcfb;
+  border: 2px solid #757570;
+  cursor: pointer;
+}
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #757570;
+  border-radius: 50%;
+  background: #fcfcfb;
+  cursor: pointer;
+}
+.slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.slider:focus-visible::-moz-range-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Small gray crosslines marking every discrete step the thumb can land
+   on (one per algorithm frame - see app.js, which rebuilds these to
+   match frame count on every scenario load). Flush with the edges (0,
+   not inset) so the first/last crosslines land exactly at the very
+   ends of the track line - not stopping short of it - even though that
+   means they sit slightly outside the thumb's own center-of-travel
+   range at min/max (a 7px difference not worth the visual gap it'd
+   otherwise leave at each end). */
+.slider-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 8px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.slider-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 8px;
+  background: #757570;
+  transform: translateX(-50%);
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  align-self: center;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Flat by default - no border, no fill - so the row reads as a quiet
+   strip of icons rather than a row of boxed buttons. A soft tinted
+   background only appears on hover, which is enough to show it's
+   interactive without adding weight to the bar the rest of the time.
+   Deliberately NOT styled any differently for aria-pressed="true" (the
+   sidebar toggle) - it should look exactly like any other button whether
+   the sidebar is open or collapsed, just with the same plain hover. */
+.btn {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text-primary); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Icon-only toolbar buttons: fixed square footprint, no label text - the
+   glyph itself plus each button's title/aria-label communicates its
+   action. line-height 1 keeps the glyph centered instead of riding high
+   inside the fixed height. */
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ------------------------- small screens ------------------------- */
+@media (max-width: 640px) {
+  .toolbar { padding: 6px 8px; gap: 2px; }
+  .btn--icon { width: 32px; height: 32px; font-size: 0.9rem; }
+  .slider-wrap { flex-basis: 100%; order: -1; margin: 0; }
+
+  /* Collapsed here stays in NORMAL FLEX FLOW at the same narrow 44px
+     rail width as desktop - it shares space with the canvas rather than
+     overlapping it, so the graph (S in particular, which always renders
+     near the far left edge by design) never ends up hidden behind it. */
+  .sidebar {
+    flex-basis: 44px;
+    max-width: 44px;
+  }
+
+  /* Not enough width to dock the EXPANDED sidebar beside the canvas here
+     - it becomes a full-height overlay sliding in from the left instead
+     (positioned against .app, set to `position: relative` above),
+     covering the header/canvas/toolbar column rather than sharing space
+     with it - 85vw is only reasonable as a temporary overlay, not
+     something to permanently reserve from the canvas on a small screen. */
+  .sidebar:not(.is-collapsed) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1; /* .sidebar is now first in DOM (for the left-docked desktop layout), so without
+                   this it would stack UNDER .content-column here and silently eat its own clicks -
+                   among positioned siblings with equal z-index, later DOM order wins by default. */
+    width: 85vw;
+    max-width: 320px;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.16);
+  }
+}
